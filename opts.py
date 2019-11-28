@@ -27,20 +27,18 @@ def parse_opts():
         '--dataset',
         default='kinetics',
         type=str,
-        help='Used dataset (activitynet | kinetics | ucf101 | hmdb51)')
+        help='Used dataset (activitynet | kinetics | ucf101 | hmdb51 | pkummd)')
     parser.add_argument(
         '--n_classes',
         default=400,
         type=int,
-        help=
-        'Number of classes (activitynet: 200, kinetics: 400, ucf101: 101, hmdb51: 51)'
+        help='Number of classes (activitynet: 200, kinetics: 400, ucf101: 101, hmdb51: 51)'
     )
     parser.add_argument(
         '--n_finetune_classes',
         default=400,
         type=int,
-        help=
-        'Number of classes for fine-tuning. n_classes is set to the number when pretraining.'
+        help='Number of classes for fine-tuning. n_classes is set to the number when pretraining.'
     )
     parser.add_argument(
         '--sample_size',
@@ -71,15 +69,13 @@ def parse_opts():
         '--train_crop',
         default='corner',
         type=str,
-        help=
-        'Spatial cropping method in training. random is uniform. corner is selection from 4 corners and 1 center.  (random | corner | center)'
+        help='Spatial cropping method in training. random is uniform. corner is selection from 4 corners and 1 center.  (random | corner | center)'
     )
     parser.add_argument(
         '--learning_rate',
         default=0.1,
         type=float,
-        help=
-        'Initial learning rate (divided by 10 while training by lr scheduler)')
+        help='Initial learning rate (divided by 10 while training by lr scheduler)')
     parser.add_argument('--momentum', default=0.9, type=float, help='Momentum')
     parser.add_argument(
         '--dampening', default=0.9, type=float, help='dampening of SGD')
@@ -89,8 +85,7 @@ def parse_opts():
         '--mean_dataset',
         default='activitynet',
         type=str,
-        help=
-        'dataset for mean values of mean subtraction (activitynet | kinetics)')
+        help='dataset for mean values of mean subtraction (activitynet | kinetics)')
     parser.add_argument(
         '--no_mean_norm',
         action='store_true',
@@ -126,8 +121,7 @@ def parse_opts():
         '--begin_epoch',
         default=1,
         type=int,
-        help=
-        'Training begins at this epoch. Previous trained model indicated by resume_path is loaded.'
+        help='Training begins at this epoch. Previous trained model indicated by resume_path is loaded.'
     )
     parser.add_argument(
         '--n_val_samples',
@@ -201,8 +195,7 @@ def parse_opts():
         '--norm_value',
         default=1,
         type=int,
-        help=
-        'If 1, range of inputs is [0-255]. If 255, range of inputs is [0-1].')
+        help='If 1, range of inputs is [0-255]. If 255, range of inputs is [0-1].')
     parser.add_argument(
         '--model',
         default='resnet',

@@ -9,7 +9,7 @@ if __name__ == "__main__":
     dst_dir_path = sys.argv[2]
 
     for file_name in os.listdir(dir_path):
-        if '.mp4' not in file_name:
+        if '.avi' not in file_name:
             continue
         name, ext = os.path.splitext(file_name)
         dst_directory_path = os.path.join(dst_dir_path, name)
