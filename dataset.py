@@ -108,6 +108,7 @@ def get_validation_set(opt, spatial_transform, temporal_transform,
             opt.annotation_path,
             'validation',
             False,
+            opt.n_val_samples,
             spatial_transform=spatial_transform,
             temporal_transform=temporal_transform,
             target_transform=target_transform,
@@ -124,6 +125,9 @@ def get_test_set(opt, spatial_transform, temporal_transform, target_transform):
         subset = 'validation'
     elif opt.test_subset == 'test':
         subset = 'testing'
+    elif opt.test_subset == 'train':
+        subset = "training"
+
     if opt.dataset == 'kinetics':
         test_data = Kinetics(
             opt.video_path,
@@ -170,11 +174,12 @@ def get_test_set(opt, spatial_transform, temporal_transform, target_transform):
             opt.video_path,
             opt.annotation_path,
             subset,
-            False,
+            True,
             0,
             spatial_transform=spatial_transform,
             temporal_transform=temporal_transform,
             target_transform=target_transform,
-            sample_duration=opt.sample_duration)
+            sample_duration=opt.sample_duration,
+            sample_stride=opt.sample_stride)
 
     return test_data
