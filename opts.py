@@ -50,6 +50,11 @@ def parse_opts():
         default=16,
         type=int,
         help='Temporal duration of inputs')
+    arser.add_argument(
+        '--sample_stride',
+        default=16,
+        type=int,
+        help='Temporal stride for sliding window')
     parser.add_argument(
         '--initial_scale',
         default=1.0,

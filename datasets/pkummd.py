@@ -170,51 +170,64 @@ def get_end_t(video_path):
 
 
 def make_untrimmed_dataset(root_path, annotation_path, subset,
-                           n_samples_for_each_video, sample_duration):
-    # TODO: This function is not modified.
+                           n_samples_for_each_video, window_size, window_stride):
     data = load_annotation_data(annotation_path)
-    video_names, _ = get_video_names_and_annotations(data, subset)
+    video_names, annotations = get_video_names_and_annotations(data, subset)
     class_to_idx = get_class_labels(data)
     idx_to_class = {}
     for name, label in class_to_idx.items():
         idx_to_class[label] = name
 
     dataset = []
+    videos = {}
     for i in range(len(video_names)):
         if i % 1000 == 0:
             print('dataset loading [{}/{}]'.format(i, len(video_names)))
 
-        video_path = os.path.join(
-            root_path, get_video_from_clip(video_names[i]))
+        annotation = annotations[i]['label']
+        label = int(annotation[i])
+        begin_t = annotation['start_frame']
+        end_t = annotation['end_frame']
+        clip = {
+            'label': label,
+            'segment': [begin_t, end_t],
+            'video_id': video_names[i]
+        }
+        video = get_video_from_clip(video_names[i])
+        if not video in videos:
+            videos[video] = []
+
+        videos[video].append(clip)
+
+    for video in videos:
+        video_path = os.path.join(root_path, video)
         if not os.path.exists(video_path):
             continue
 
-        begin_t = 1
-        end_t = get_end_t(video_path)
-        n_frames = end_t - begin_t
+        n_frames_file_path = os.path.join(video_path, 'n_frames')
+        n_frames = int(load_value_file(n_frames_file_path))
+        if n_frames <= 0:
+            continue
 
-        sample = {
-            'video': video_path,
-            'segment': [begin_t, end_t],
-            'fps': fps,
-            'video_id': video_names[i][2:]
-        }
+        window_start = 0
+        window_end = window_start + window_size
+        idx = 0
+        while window_end < n_frames:
+            sample = {
+                'video': video_path,
+                'segment': [window_start, window_end],
+                'video_id': video,
+                'window_id': idx}
+            frame_indices = list(range(window_start, window_end))
+            frame_indices = modify_frame_indices(
+                sample['video'], frame_indices)
+            sample['frame_indices'] = frame_indices
+            sample['label'] = -1  # Not computed yet
+            dataset.append(sample)
 
-        if n_samples_for_each_video >= 1:
-            step = max(1,
-                       math.ceil((n_frames - 1 - sample_duration) /
-                                 (n_samples_for_each_video - 1)))
-        else:
-            step = sample_duration
-        for j in range(begin_t, end_t, step):
-            sample_j = copy.deepcopy(sample)
-            frame_indices = list(range(j, j + sample_duration))
-            frame_indices = modify_frame_indices(sample_j['video'],
-                                                 frame_indices)
-            if len(frame_indices) < 16:
-                continue
-            sample_j['frame_indices'] = frame_indices
-            dataset.append(sample_j)
+            window_start += window_stride
+            window_end = window_start + window_size
+            idx += 1
 
     return dataset, idx_to_class
 
@@ -246,11 +259,12 @@ class PKUMMD(data.Dataset):
                  temporal_transform=None,
                  target_transform=None,
                  sample_duration=16,
+                 sample_stride=None,
                  get_loader=get_default_video_loader):
         if is_untrimmed_setting:
             self.data, self.class_names = make_untrimmed_dataset(
                 root_path, annotation_path, subset, n_samples_for_each_video,
-                sample_duration)
+                sample_duration, sample_stride)
         else:
             self.data, self.class_names = make_dataset(
                 root_path, annotation_path, subset, n_samples_for_each_video,
@@ -283,7 +297,10 @@ class PKUMMD(data.Dataset):
         if self.target_transform is not None:
             target = self.target_transform(target)
 
-        return clip, target
+        if is_untrimmed_setting:
+            return clip, target, (self.data[index]['video_id'], self.data[index]['window_id'])
+        else:
+            return clip, target
 
     def __len__(self):
         return len(self.data)
