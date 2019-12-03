@@ -184,8 +184,8 @@ def make_untrimmed_dataset(root_path, annotation_path, subset,
         if i % 1000 == 0:
             print('dataset loading [{}/{}]'.format(i, len(video_names)))
 
-        annotation = annotations[i]['label']
-        label = int(annotation[i])
+        annotation = annotations[i]
+        label = int(annotation['label'])
         begin_t = annotation['start_frame']
         end_t = annotation['end_frame']
         clip = {
@@ -199,6 +199,7 @@ def make_untrimmed_dataset(root_path, annotation_path, subset,
 
         videos[video].append(clip)
 
+    i = 0
     for video in videos:
         video_path = os.path.join(root_path, video)
         if not os.path.exists(video_path):
@@ -223,12 +224,17 @@ def make_untrimmed_dataset(root_path, annotation_path, subset,
                 sample['video'], frame_indices)
             sample['frame_indices'] = frame_indices
             sample['label'] = -1  # Not computed yet
-            dataset.append(sample)
+            if len(frame_indices) == window_size:
+                dataset.append(sample)
 
             window_start += window_stride
             window_end = window_start + window_size
             idx += 1
+        if i % 10 == 0:
+            print('dataset loading [{}/{}]'.format(i, len(videos)))
+        i += 1
 
+    print("Make untrimmed dataset")
     return dataset, idx_to_class
 
 
@@ -259,12 +265,14 @@ class PKUMMD(data.Dataset):
                  temporal_transform=None,
                  target_transform=None,
                  sample_duration=16,
-                 sample_stride=None,
+                 window_size=None,
+                 window_stride=None,
                  get_loader=get_default_video_loader):
+        self.is_untrimmed_setting = is_untrimmed_setting
         if is_untrimmed_setting:
             self.data, self.class_names = make_untrimmed_dataset(
                 root_path, annotation_path, subset, n_samples_for_each_video,
-                sample_duration, sample_stride)
+                window_size, window_stride)
         else:
             self.data, self.class_names = make_dataset(
                 root_path, annotation_path, subset, n_samples_for_each_video,
@@ -297,7 +305,7 @@ class PKUMMD(data.Dataset):
         if self.target_transform is not None:
             target = self.target_transform(target)
 
-        if is_untrimmed_setting:
+        if self.is_untrimmed_setting:
             return clip, target, (self.data[index]['video_id'], self.data[index]['window_id'])
         else:
             return clip, target

@@ -5,6 +5,8 @@ import time
 import os
 import sys
 import json
+from collections import defaultdict
+import numpy as np
 
 from utils import AverageMeter
 
@@ -36,40 +38,41 @@ def test(data_loader, model, opt, class_names):
     output_buffer = []
     previous_video_id = ''
     test_results = {'results': {}}
+    prev_video_id = None
+    dump_dir = os.path.join(opt.root_path, opt.scores_dump_path)
+    if not os.path.exists(dump_dir):
+        os.makedirs(dump_dir)
     for i, (inputs, targets, video_info) in enumerate(data_loader):
+        if os.path.exists(dump_dir + "/" + video_info[0][0]):
+           continue
         data_time.update(time.time() - end_time)
-        print("Video info: ", video_info)
-
+        if prev_video_id != video_info[0][0]:
+            if prev_video_id is not None:
+                with open(dump_dir + "/" + prev_video_id, 'w') as outfile:
+                    json.dump(output_dict, outfile)
+                    print("{0} Scores saved for {1} \n"
+                          "Batch Time: {2}".format(len(output_dict), prev_video_id, batch_time.avg))
+            prev_video_id = video_info[0][0]
+            output_dict = defaultdict(lambda: defaultdict(list))
+            idx = 0
+         
         inputs = Variable(inputs, volatile=True)
+        if opt.window_size != opt.sample_duration:
+            inputs = inputs.reshape((-1, 3, opt.sample_duration, opt.sample_size, opt.sample_size))
+        start_time = time.time()
         outputs = model(inputs)
         if not opt.no_softmax_in_test:
             outputs = F.softmax(outputs)
+        outputs = torch.mean(outputs, dim=0)
+        batch_time.update(time.time() - start_time)
+        assert (idx + 1) == int(video_info[1][0]) 
+        idx = int(video_info[1][0]) 
+        rgb_scores = outputs.cpu().detach().numpy().flatten().tolist()
+        # print(idx, np.argmax(np.asarray(rgb_scores, dtype=float)))
+        output_dict["window_" + str(idx)]["rgb_scores"] = rgb_scores 
 
-        for j in range(outputs.size(0)):
-            if not (i == 0 and j == 0) and targets[j] != previous_video_id:
-                calculate_video_results(output_buffer, previous_video_id,
-                                        test_results, class_names)
-                output_buffer = []
-            output_buffer.append(outputs[j].data.cpu())
-            previous_video_id = targets[j]
-
-        if (i % 100) == 0:
-            with open(
-                    os.path.join(opt.result_path, '{}.json'.format(
-                        opt.test_subset)), 'w') as f:
-                json.dump(test_results, f)
-
-        batch_time.update(time.time() - end_time)
-        end_time = time.time()
-
-        print('[{}/{}]\t'
-              'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-              'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'.format(
-                  i + 1,
-                  len(data_loader),
-                  batch_time=batch_time,
-                  data_time=data_time))
-    with open(
-            os.path.join(opt.result_path, '{}.json'.format(opt.test_subset)),
-            'w') as f:
-        json.dump(test_results, f)
+    if prev_video_id is not None:
+        with open(dump_dir + "/" + prev_video_id, 'w') as outfile:
+            json.dump(output_dict, outfile)
+            print("{0} Scores saved for {1}\n"
+                  "Batch Time: {2}".format(len(output_dict), prev_video_id, batch_time.avg))

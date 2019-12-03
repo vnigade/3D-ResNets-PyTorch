@@ -119,7 +119,7 @@ def get_validation_set(opt, spatial_transform, temporal_transform,
 def get_test_set(opt, spatial_transform, temporal_transform, target_transform):
     assert opt.dataset in ['kinetics',
                            'activitynet', 'ucf101', 'hmdb51', 'pkummd']
-    assert opt.test_subset in ['val', 'test']
+    assert opt.test_subset in ['val', 'test', 'train']
 
     if opt.test_subset == 'val':
         subset = 'validation'
@@ -180,6 +180,7 @@ def get_test_set(opt, spatial_transform, temporal_transform, target_transform):
             temporal_transform=temporal_transform,
             target_transform=target_transform,
             sample_duration=opt.sample_duration,
-            sample_stride=opt.sample_stride)
+            window_size=opt.window_size,
+            window_stride=opt.window_stride)
 
     return test_data

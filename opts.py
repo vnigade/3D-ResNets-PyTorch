@@ -24,6 +24,11 @@ def parse_opts():
         type=str,
         help='Result directory path')
     parser.add_argument(
+        '--scores_dump_path',
+        default='scores_dump',
+        type=str,
+        help='Scores dump directory path')
+    parser.add_argument(
         '--dataset',
         default='kinetics',
         type=str,
@@ -50,8 +55,13 @@ def parse_opts():
         default=16,
         type=int,
         help='Temporal duration of inputs')
-    arser.add_argument(
-        '--sample_stride',
+    parser.add_argument(
+        '--window_size',
+        default=16,
+        type=int,
+        help='Temporal duration of inputs')
+    parser.add_argument(
+        '--window_stride',
         default=16,
         type=int,
         help='Temporal stride for sliding window')
