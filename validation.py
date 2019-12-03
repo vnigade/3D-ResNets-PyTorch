@@ -2,10 +2,15 @@ import torch
 from torch.autograd import Variable
 import time
 import sys
+import numpy as np
 
 from utils import AverageMeter, calculate_accuracy
 
-
+def print_output(outputs, target):
+    scores = outputs.cpu().detach().numpy().flatten().tolist()
+    action = np.argmax(np.asarray(scores, dtype=float))
+    print("Validation output: ", action, target)
+ 
 def val_epoch(epoch, data_loader, model, criterion, opt, logger):
     print('validation at epoch {}'.format(epoch))
 
@@ -25,6 +30,7 @@ def val_epoch(epoch, data_loader, model, criterion, opt, logger):
         inputs = Variable(inputs, volatile=True)
         targets = Variable(targets, volatile=True)
         outputs = model(inputs)
+        # print_output(outputs, targets)
         loss = criterion(outputs, targets)
         acc = calculate_accuracy(outputs, targets)
 

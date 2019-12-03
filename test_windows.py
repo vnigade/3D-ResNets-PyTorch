@@ -43,16 +43,22 @@ def test(data_loader, model, opt, class_names):
     if not os.path.exists(dump_dir):
         os.makedirs(dump_dir)
     for i, (inputs, targets, video_info) in enumerate(data_loader):
-        if os.path.exists(dump_dir + "/" + video_info[0][0]):
+        video_id = video_info['video_id'][0]
+        window_id = video_info['window_id'][0]
+        segment = video_info['segment'][0]
+        # print(video_id, window_id, segment)
+        if os.path.exists(dump_dir + "/" + video_id):
            continue
         data_time.update(time.time() - end_time)
-        if prev_video_id != video_info[0][0]:
+        # if prev_video_id != video_info[0][0]:
+        if prev_video_id != video_id:
             if prev_video_id is not None:
                 with open(dump_dir + "/" + prev_video_id, 'w') as outfile:
                     json.dump(output_dict, outfile)
                     print("{0} Scores saved for {1} \n"
                           "Batch Time: {2}".format(len(output_dict), prev_video_id, batch_time.avg))
-            prev_video_id = video_info[0][0]
+            # prev_video_id = video_info[0][0]
+            prev_video_id = video_id
             output_dict = defaultdict(lambda: defaultdict(list))
             idx = 0
          
@@ -62,13 +68,16 @@ def test(data_loader, model, opt, class_names):
         start_time = time.time()
         outputs = model(inputs)
         if not opt.no_softmax_in_test:
-            outputs = F.softmax(outputs)
+           outputs = F.softmax(outputs)
         outputs = torch.mean(outputs, dim=0)
         batch_time.update(time.time() - start_time)
-        assert (idx + 1) == int(video_info[1][0]) 
-        idx = int(video_info[1][0]) 
+        # assert (idx + 1) == int(video_info[1][0]) 
+        assert (idx + 1) == int(window_id)
+        # idx = int(video_info[1][0]) 
+        idx = int(window_id)
         rgb_scores = outputs.cpu().detach().numpy().flatten().tolist()
-        # print(idx, np.argmax(np.asarray(rgb_scores, dtype=float)))
+        target_actions = targets
+        # print(video_id, idx, np.argmax(np.asarray(rgb_scores, dtype=float)), target_actions)
         output_dict["window_" + str(idx)]["rgb_scores"] = rgb_scores 
 
     if prev_video_id is not None:

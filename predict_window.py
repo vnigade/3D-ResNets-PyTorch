@@ -58,7 +58,7 @@ if __name__ == '__main__':
         norm_method = Normalize(opt.mean, opt.std)
 
     assert opt.no_train
-    assert opt.no_val
+    # assert opt.no_val
 
     if opt.resume_path:
         print('loading checkpoint {}'.format(opt.resume_path))
@@ -71,15 +71,39 @@ if __name__ == '__main__':
             optimizer.load_state_dict(checkpoint['optimizer'])
 
     print('run')
+    # Perform validation to check the accuracy on clip videos
+    if not opt.no_val:
+        spatial_transform = Compose([
+            Scale(opt.sample_size),
+            CenterCrop(opt.sample_size),
+            ToTensor(opt.norm_value), norm_method
+            ])
+        temporal_transform = LoopPadding(opt.sample_duration)
+        target_transform = ClassLabel()
+        validation_data = get_validation_set(
+            opt, spatial_transform, temporal_transform, target_transform)
+        val_loader = torch.utils.data.DataLoader(
+            validation_data,
+            batch_size=opt.batch_size,
+            shuffle=False,
+            num_workers=opt.n_threads,
+            pin_memory=True)
+        val_logger = Logger(
+            os.path.join(opt.result_path, 'val.log'), ['epoch', 'loss', 'acc'])
+        validation_loss = val_epoch(opt.begin_epoch, val_loader, model, criterion, opt,
+                                val_logger)
 
     if opt.test:
         spatial_transform = Compose([
-            Scale(int(opt.sample_size / opt.scale_in_test)),
-            CornerCrop(opt.sample_size, opt.crop_position_in_test),
+            # Scale(int(opt.sample_size / opt.scale_in_test)),  
+            Scale(opt.sample_size),
+            # CornerCrop(opt.sample_size, opt.crop_position_in_test),
+            CenterCrop(opt.sample_size),
             ToTensor(opt.norm_value), norm_method
         ])
-        temporal_transform = LoopPadding(opt.sample_duration)
-        target_transform = VideoID()
+        temporal_transform = LoopPadding(opt.window_size)
+        # target_transform = VideoID()
+        target_transform = ClassLabel()
 
         test_data = get_test_set(opt, spatial_transform, temporal_transform,
                                  target_transform)

@@ -168,7 +168,17 @@ def get_end_t(video_path):
     image_file_names.sort(reverse=True)
     return int(image_file_names[0][6:11])
 
-
+def get_untrimmed_label(video, start_frame, end_frame):
+    label = []
+    for clip in video:
+        action = clip['label']
+        start = clip['segment'][0]
+        end = clip['segment'][1]
+        for frame in range(start_frame, end_frame, 1):
+            if frame in list(range(start, end)):
+                label.append(action)
+    return label
+    
 def make_untrimmed_dataset(root_path, annotation_path, subset,
                            n_samples_for_each_video, window_size, window_stride):
     data = load_annotation_data(annotation_path)
@@ -210,9 +220,9 @@ def make_untrimmed_dataset(root_path, annotation_path, subset,
         if n_frames <= 0:
             continue
 
-        window_start = 0
+        window_start = 1
         window_end = window_start + window_size
-        idx = 0
+        idx = 1
         while window_end < n_frames:
             sample = {
                 'video': video_path,
@@ -223,7 +233,8 @@ def make_untrimmed_dataset(root_path, annotation_path, subset,
             frame_indices = modify_frame_indices(
                 sample['video'], frame_indices)
             sample['frame_indices'] = frame_indices
-            sample['label'] = -1  # Not computed yet
+            # sample['label'] = -1  # Not computed yet
+            sample['label'] = get_untrimmed_label(videos[video], window_start, window_end)
             if len(frame_indices) == window_size:
                 dataset.append(sample)
 
@@ -304,9 +315,10 @@ class PKUMMD(data.Dataset):
         target = self.data[index]
         if self.target_transform is not None:
             target = self.target_transform(target)
-
+        # print(path, frame_indices, target)
         if self.is_untrimmed_setting:
-            return clip, target, (self.data[index]['video_id'], self.data[index]['window_id'])
+            # return clip, target, (self.data[index]['video_id'], self.data[index]['window_id'])
+            return clip, target, self.data[index]
         else:
             return clip, target
 
