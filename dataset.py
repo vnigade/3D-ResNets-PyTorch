@@ -181,6 +181,7 @@ def get_test_set(opt, spatial_transform, temporal_transform, target_transform):
             target_transform=target_transform,
             sample_duration=opt.sample_duration,
             window_size=opt.window_size,
-            window_stride=opt.window_stride)
+            window_stride=opt.window_stride,
+            scores_dump_path=(opt.root_path + "/" + opt.scores_dump_path))
 
     return test_data

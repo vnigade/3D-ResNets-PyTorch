@@ -179,7 +179,7 @@ def get_untrimmed_label(video, start_frame, end_frame):
                 label.append(action)
     return label
     
-def make_untrimmed_dataset(root_path, annotation_path, subset,
+def make_untrimmed_dataset(root_path, scores_dump_path, annotation_path, subset,
                            n_samples_for_each_video, window_size, window_stride):
     data = load_annotation_data(annotation_path)
     video_names, annotations = get_video_names_and_annotations(data, subset)
@@ -210,9 +210,11 @@ def make_untrimmed_dataset(root_path, annotation_path, subset,
         videos[video].append(clip)
 
     i = 0
+    # dump_dir = os.path.join(root_path, scores_dump_path)
     for video in videos:
         video_path = os.path.join(root_path, video)
-        if not os.path.exists(video_path):
+        if not os.path.exists(video_path) or os.path.exists(scores_dump_path + "/" + video):
+            print("Skipping video ", video)
             continue
 
         n_frames_file_path = os.path.join(video_path, 'n_frames')
@@ -278,11 +280,12 @@ class PKUMMD(data.Dataset):
                  sample_duration=16,
                  window_size=None,
                  window_stride=None,
-                 get_loader=get_default_video_loader):
+                 get_loader=get_default_video_loader,
+                 scores_dump_path=None):
         self.is_untrimmed_setting = is_untrimmed_setting
         if is_untrimmed_setting:
             self.data, self.class_names = make_untrimmed_dataset(
-                root_path, annotation_path, subset, n_samples_for_each_video,
+                root_path, scores_dump_path, annotation_path, subset, n_samples_for_each_video,
                 window_size, window_stride)
         else:
             self.data, self.class_names = make_dataset(
