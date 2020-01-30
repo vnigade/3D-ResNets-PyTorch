@@ -19,8 +19,28 @@ from target_transforms import Compose as TargetCompose
 from dataset import get_training_set, get_validation_set, get_test_set
 from utils import Logger
 from train import train_epoch
+from KD_train import train_epoch as kd_train_epoch
 from validation import val_epoch
 import test
+
+
+def load_teacher_model(opt):
+    assert opt.teacher_model is not None
+    local_opt = opt
+    local_opt.model = opt.teacher_model
+    local_opt.model_depth = opt.teacher_model_depth
+    local_opt.resnet_shortcut = opt.teacher_resnet_shortcut
+    local_opt.resnext_cardinality = opt.teacher_resnext_cardinality
+    local_opt.arch = '{}-{}'.format(local_opt.model, local_opt.model_depth)
+    model, _ = generate_model(local_opt)
+
+    print('loading teacher model checkpoint {}'.format(opt.teacher_model_path))
+    checkpoint = torch.load(opt.teacher_model_path)
+    assert local_opt.arch == checkpoint['arch']
+    model.load_state_dict(checkpoint['state_dict'])
+
+    return model
+
 
 if __name__ == '__main__':
     opt = parse_opts()
@@ -133,8 +153,13 @@ if __name__ == '__main__':
     print('run')
     for i in range(opt.begin_epoch, opt.n_epochs + 1):
         if not opt.no_train:
-            train_epoch(i, train_loader, model, criterion, optimizer, opt,
-                        train_logger, train_batch_logger)
+            if opt.kd_train:
+                teacher_model = load_teacher_model(opt)
+                kd_train_epoch(i, train_loader, model, teacher_model, optimizer, opt,
+                               train_logger, train_batch_logger)
+            else:
+                train_epoch(i, train_loader, model, criterion, optimizer, opt,
+                            train_logger, train_batch_logger)
         if not opt.no_val:
             validation_loss = val_epoch(i, val_loader, model, criterion, opt,
                                         val_logger)

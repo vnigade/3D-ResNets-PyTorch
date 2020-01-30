@@ -235,6 +235,31 @@ def parse_opts():
         help='ResNeXt cardinality')
     parser.add_argument(
         '--manual_seed', default=1, type=int, help='Manually set random seed')
+    parser.add_argument(
+        '--teacher_resnext_cardinality',
+        default=32,
+        type=int,
+        help='Teacher ResNeXt cardinality')
+    parser.add_argument(
+        '--teacher_model',
+        default='resnext',
+        type=str,
+        help='(resnet | preresnet | wideresnet | resnext | densenet | ')
+    parser.add_argument(
+        '--teacher_model_depth',
+        default=101,
+        type=int,
+        help='Depth of resnet (10 | 18 | 34 | 50 | 101)')
+    parser.add_argument(
+        '--teacher_resnet_shortcut',
+        default='B',
+        type=str,
+        help='Shortcut type of resnet (A | B)')
+    parser.add_argument(
+        '--teacher_model_path',
+        default='',
+        type=str,
+        help='Save data (.pth) of teacher model training')
 
     args = parser.parse_args()
 

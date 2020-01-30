@@ -77,7 +77,7 @@ if __name__ == '__main__':
             Scale(opt.sample_size),
             CenterCrop(opt.sample_size),
             ToTensor(opt.norm_value), norm_method
-            ])
+        ])
         temporal_transform = LoopPadding(opt.sample_duration)
         target_transform = ClassLabel()
         validation_data = get_validation_set(
@@ -91,11 +91,11 @@ if __name__ == '__main__':
         val_logger = Logger(
             os.path.join(opt.result_path, 'val.log'), ['epoch', 'loss', 'acc'])
         validation_loss = val_epoch(opt.begin_epoch, val_loader, model, criterion, opt,
-                                val_logger)
+                                    val_logger)
 
     if opt.test:
         spatial_transform = Compose([
-            # Scale(int(opt.sample_size / opt.scale_in_test)),  
+            # Scale(int(opt.sample_size / opt.scale_in_test)),
             Scale(opt.sample_size),
             # CornerCrop(opt.sample_size, opt.crop_position_in_test),
             CenterCrop(opt.sample_size),
