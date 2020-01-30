@@ -71,7 +71,7 @@ def generate_model(opt):
     elif opt.model == 'resnext':
         assert opt.model_depth in [50, 101, 152]
 
-        from models.resnext import get_fine_tuning_parameters
+        from .models.resnext import get_fine_tuning_parameters
 
         if opt.model_depth == 50:
             model = resnext.resnet50(
