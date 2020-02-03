@@ -64,6 +64,8 @@ def test(data_loader, model, opt, class_names):
          
         inputs = Variable(inputs, volatile=True)
         if opt.window_size != opt.sample_duration:
+            # If model is trained on lower number of sample duration, then create batches of sample duration
+            # size and take mean of the output.
             inputs = inputs.reshape((-1, 3, opt.sample_duration, opt.sample_size, opt.sample_size))
         start_time = time.time()
         outputs = model(inputs)

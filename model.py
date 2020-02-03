@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from .models import resnet, pre_act_resnet, wide_resnet, resnext, densenet
+from models import resnet, pre_act_resnet, wide_resnet, resnext, densenet
 
 
 def generate_model(opt):
@@ -12,7 +12,7 @@ def generate_model(opt):
     if opt.model == 'resnet':
         assert opt.model_depth in [10, 18, 34, 50, 101, 152, 200]
 
-        from .models.resnet import get_fine_tuning_parameters
+        from models.resnet import get_fine_tuning_parameters
 
         if opt.model_depth == 10:
             model = resnet.resnet10(
@@ -71,7 +71,7 @@ def generate_model(opt):
     elif opt.model == 'resnext':
         assert opt.model_depth in [50, 101, 152]
 
-        from .models.resnext import get_fine_tuning_parameters
+        from models.resnext import get_fine_tuning_parameters
 
         if opt.model_depth == 50:
             model = resnext.resnet50(

@@ -108,8 +108,9 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
 
     dataset = []
     for i in range(len(video_names)):
-        if i % 1000 == 0:
+        if i != 0 and i % 1000 == 0:
             print('dataset loading [{}/{}]'.format(i, len(video_names)))
+            # return dataset, idx_to_class # early exit
 
         video_path = os.path.join(
             root_path, get_video_from_clip(video_names[i]))
@@ -214,7 +215,7 @@ def make_untrimmed_dataset(root_path, scores_dump_path, annotation_path, subset,
     for video in videos:
         video_path = os.path.join(root_path, video)
         if not os.path.exists(video_path) or os.path.exists(scores_dump_path + "/" + video):
-            print("Skipping video ", video)
+            print("Skipping video ", video_path, scores_dump_path)
             continue
 
         n_frames_file_path = os.path.join(video_path, 'n_frames')
@@ -323,7 +324,7 @@ class PKUMMD(data.Dataset):
             # return clip, target, (self.data[index]['video_id'], self.data[index]['window_id'])
             return clip, target, self.data[index]
         else:
-            return clip, target
+            return clip, target, index
 
     def __len__(self):
         return len(self.data)

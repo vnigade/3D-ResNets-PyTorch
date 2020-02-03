@@ -20,22 +20,26 @@ from dataset import get_training_set, get_validation_set, get_test_set
 from utils import Logger
 from train import train_epoch
 from KD_train import train_epoch as kd_train_epoch
+from KD_train import teacher_predictions 
 from validation import val_epoch
 import test
+import copy
 
 
 def load_teacher_model(opt):
     assert opt.teacher_model is not None
-    local_opt = opt
+    local_opt = copy.deepcopy(opt)
     local_opt.model = opt.teacher_model
     local_opt.model_depth = opt.teacher_model_depth
     local_opt.resnet_shortcut = opt.teacher_resnet_shortcut
     local_opt.resnext_cardinality = opt.teacher_resnext_cardinality
     local_opt.arch = '{}-{}'.format(local_opt.model, local_opt.model_depth)
+    local_opt.resume_path = os.path.join(opt.root_path, opt.teacher_model_path) 
+    local_opt.pretrain_path = os.path.join(opt.root_path, opt.teacher_pretrain_path)
     model, _ = generate_model(local_opt)
 
-    print('loading teacher model checkpoint {}'.format(opt.teacher_model_path))
-    checkpoint = torch.load(opt.teacher_model_path)
+    print('loading teacher model checkpoint {}'.format(local_opt.resume_path))
+    checkpoint = torch.load(local_opt.resume_path)
     assert local_opt.arch == checkpoint['arch']
     model.load_state_dict(checkpoint['state_dict'])
 
@@ -101,6 +105,13 @@ if __name__ == '__main__':
             shuffle=True,
             num_workers=opt.n_threads,
             pin_memory=True)
+        if opt.kd_train:
+            teacher_train_loader = torch.utils.data.DataLoader(
+                training_data,
+                batch_size=opt.teacher_batch_size,
+                shuffle=True,
+                num_workers=opt.n_threads,
+                pin_memory=True)
         train_logger = Logger(
             os.path.join(opt.result_path, 'train.log'),
             ['epoch', 'loss', 'acc', 'lr'])
@@ -143,6 +154,7 @@ if __name__ == '__main__':
     if opt.resume_path:
         print('loading checkpoint {}'.format(opt.resume_path))
         checkpoint = torch.load(opt.resume_path)
+        print(opt.arch, checkpoint['arch'])
         assert opt.arch == checkpoint['arch']
 
         opt.begin_epoch = checkpoint['epoch']
@@ -150,12 +162,18 @@ if __name__ == '__main__':
         if not opt.no_train:
             optimizer.load_state_dict(checkpoint['optimizer'])
 
-    print('run')
+    print('Starting run from epoch ', opt.begin_epoch)
+    if opt.kd_train:
+        teacher_model = load_teacher_model(opt)
+        teacher_predictions(teacher_model, teacher_train_loader, opt)
+        del teacher_train_loader
+        del teacher_model
+
     for i in range(opt.begin_epoch, opt.n_epochs + 1):
         if not opt.no_train:
             if opt.kd_train:
-                teacher_model = load_teacher_model(opt)
-                kd_train_epoch(i, train_loader, model, teacher_model, optimizer, opt,
+                # teacher_model = load_teacher_model(opt)
+                kd_train_epoch(i, train_loader, model, None, optimizer, opt,
                                train_logger, train_batch_logger)
             else:
                 train_epoch(i, train_loader, model, criterion, optimizer, opt,

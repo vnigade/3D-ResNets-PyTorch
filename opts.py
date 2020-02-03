@@ -236,6 +236,11 @@ def parse_opts():
     parser.add_argument(
         '--manual_seed', default=1, type=int, help='Manually set random seed')
     parser.add_argument(
+        '--kd_train',
+        action='store_true',
+        help='If true, KD training is performed.')
+    parser.set_defaults(kd_train=False)
+    parser.add_argument(
         '--teacher_resnext_cardinality',
         default=32,
         type=int,
@@ -260,6 +265,10 @@ def parse_opts():
         default='',
         type=str,
         help='Save data (.pth) of teacher model training')
+    parser.add_argument(
+        '--teacher_pretrain_path', default='', type=str, help='Teacher pretrained model (.pth)')
+    parser.add_argument(
+        '--teacher_batch_size', default=128, type=int, help='Batch Size')
 
     args = parser.parse_args()
 
