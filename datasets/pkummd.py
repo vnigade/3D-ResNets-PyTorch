@@ -192,8 +192,9 @@ def make_untrimmed_dataset(root_path, scores_dump_path, annotation_path, subset,
     dataset = []
     videos = {}
     for i in range(len(video_names)):
-        if i % 1000 == 0:
+        if i != 0 and i % 1000 == 0:
             print('dataset loading [{}/{}]'.format(i, len(video_names)))
+            # break # early exit
 
         annotation = annotations[i]
         label = int(annotation['label'])

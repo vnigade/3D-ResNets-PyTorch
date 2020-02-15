@@ -21,6 +21,20 @@ from utils import Logger
 from train import train_epoch
 from validation import val_epoch
 import test_windows as test
+import timeit
+from utils import AverageMeter
+
+def model_time(model):
+    avg_time = AverageMeter()
+    for i in range(100):
+        input = torch.randn([1,3,64,112,112]).cuda()
+        start_time = timeit.default_timer()
+        with torch.no_grad():
+            _ = model(input)
+            torch.cuda.synchronize()
+            prediction_time = timeit.default_timer() - start_time
+            avg_time.update(prediction_time * 1000)
+    print("Model inference time:", avg_time.avg)
 
 if __name__ == '__main__':
     opt = parse_opts()
@@ -46,9 +60,11 @@ if __name__ == '__main__':
 
     model, parameters = generate_model(opt)
     print(model)
-    criterion = nn.CrossEntropyLoss()
-    if not opt.no_cuda:
-        criterion = criterion.cuda()
+    model_time(model)
+    # criterion = nn.CrossEntropyLoss()
+    # if not opt.no_cuda:
+    #    criterion = criterion.cuda()
+    criterion = None
 
     if opt.no_mean_norm and not opt.std_norm:
         norm_method = Normalize([0, 0, 0], [1, 1, 1])
@@ -67,8 +83,8 @@ if __name__ == '__main__':
 
         opt.begin_epoch = checkpoint['epoch']
         model.load_state_dict(checkpoint['state_dict'])
-        if not opt.no_train:
-            optimizer.load_state_dict(checkpoint['optimizer'])
+        # if not opt.no_train:
+        #    optimizer.load_state_dict(checkpoint['optimizer'])
 
     print('run')
     # Perform validation to check the accuracy on clip videos
