@@ -24,6 +24,7 @@ def loss_kd(outputs, teacher_outputs, targets):
 def teacher_predictions(model, data_loader, opt):
     assert not _teacher_outputs_dict
     model.eval()
+    data_len = len(data_loader)
     for i, (inputs, targets, indices) in enumerate(data_loader):
         if not opt.no_cuda:
             inputs, targets = inputs.cuda(async=True), targets.cuda(async=True)
@@ -31,7 +32,7 @@ def teacher_predictions(model, data_loader, opt):
         inputs = Variable(inputs)
         targets = Variable(targets)
         teacher_output = model(inputs).data.cpu().numpy()
-        # print("Teacher output shape", teacher_output.shape)
+        print("Teacher prediction ({}/{})".format(i, data_len))
         # teacher_outputs.append(teacher_output)
         for i in range(len(indices)):
             _teacher_outputs_dict[indices[i].item()] = teacher_output[i]
@@ -134,10 +135,15 @@ def train_epoch(epoch, data_loader, model, teacher_model, optimizer, opt,
     if epoch % opt.checkpoint == 0:
         save_file_path = os.path.join(opt.result_path,
                                       'save_{}.pth'.format(epoch))
+        if not opt.no_cuda:
+            state_dict = model.module.state_dict()
+        else:
+            state_dict = model.state_dict()
+
         states = {
             'epoch': epoch + 1,
             'arch': opt.arch,
-            'state_dict': model.state_dict(),
+            'state_dict': state_dict,
             'optimizer': optimizer.state_dict(),
         }
         torch.save(states, save_file_path)

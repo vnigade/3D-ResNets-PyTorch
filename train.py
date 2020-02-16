@@ -73,10 +73,15 @@ def train_epoch(epoch, data_loader, model, criterion, optimizer, opt,
     if epoch % opt.checkpoint == 0:
         save_file_path = os.path.join(opt.result_path,
                                       'save_{}.pth'.format(epoch))
+        if not opt.no_cuda:
+            state_dict = model.module.state_dict()
+        else:
+            state_dict = model.state_dict()
+
         states = {
             'epoch': epoch + 1,
             'arch': opt.arch,
-            'state_dict': model.state_dict(),
+            'state_dict': state_dict,
             'optimizer': optimizer.state_dict(),
         }
         torch.save(states, save_file_path)
