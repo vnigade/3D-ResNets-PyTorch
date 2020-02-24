@@ -158,7 +158,11 @@ if __name__ == '__main__':
         assert opt.arch == checkpoint['arch']
 
         opt.begin_epoch = checkpoint['epoch']
-        model.load_state_dict(checkpoint['state_dict'])
+        if not opt.no_cuda:
+            # Model wrapped around DataParallel but checkpoints are not
+            model.module.load_state_dict(checkpoint['state_dict'])
+        else:
+            model.load_state_dict(checkpoint['state_dict'])
         if not opt.no_train:
             optimizer.load_state_dict(checkpoint['optimizer'])
 

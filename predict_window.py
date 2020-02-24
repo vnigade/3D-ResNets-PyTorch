@@ -24,10 +24,10 @@ import test_windows as test
 import timeit
 from utils import AverageMeter
 
-def model_time(model):
+def model_time(model, opt):
     avg_time = AverageMeter()
     for i in range(100):
-        input = torch.randn([1,3,64,112,112]).cuda()
+        input = torch.randn([1,3,opt.sample_duration,opt.sample_size,opt.sample_size]).cuda()
         start_time = timeit.default_timer()
         with torch.no_grad():
             _ = model(input)
@@ -60,7 +60,7 @@ if __name__ == '__main__':
 
     model, parameters = generate_model(opt)
     print(model)
-    model_time(model)
+    model_time(model, opt)
     # criterion = nn.CrossEntropyLoss()
     # if not opt.no_cuda:
     #    criterion = criterion.cuda()
@@ -82,7 +82,14 @@ if __name__ == '__main__':
         assert opt.arch == checkpoint['arch']
 
         opt.begin_epoch = checkpoint['epoch']
-        model.load_state_dict(checkpoint['state_dict'])
+        res = [val for key, val in checkpoint['state_dict'].items() if 'module' in key]
+        # if not opt.no_cuda:
+        if len(res) == 0:
+            # Model wrapped around DataParallel but checkpoints are not
+            model.module.load_state_dict(checkpoint['state_dict'])
+        else:
+            model.load_state_dict(checkpoint['state_dict'])
+
         # if not opt.no_train:
         #    optimizer.load_state_dict(checkpoint['optimizer'])
 
@@ -129,4 +136,5 @@ if __name__ == '__main__':
             shuffle=False,
             num_workers=opt.n_threads,
             pin_memory=True)
-        test.test(test_loader, model, opt, test_data.class_names)
+        # test.test(test_loader, model, opt, test_data.class_names)
+        test.test_batch(test_data, model, opt, test_data.class_names, 16)
