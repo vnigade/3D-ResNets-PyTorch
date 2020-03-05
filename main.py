@@ -99,6 +99,7 @@ if __name__ == '__main__':
         target_transform = ClassLabel()
         training_data = get_training_set(opt, spatial_transform,
                                          temporal_transform, target_transform)
+        print("Total training data:", len(training_data))
         train_loader = torch.utils.data.DataLoader(
             training_data,
             batch_size=opt.batch_size,
@@ -158,7 +159,9 @@ if __name__ == '__main__':
         assert opt.arch == checkpoint['arch']
 
         opt.begin_epoch = checkpoint['epoch']
-        if not opt.no_cuda:
+        res = [val for key, val in checkpoint['state_dict'].items() if 'module' in key]
+        # if not opt.no_cuda:
+        if len(res) == 0:
             # Model wrapped around DataParallel but checkpoints are not
             model.module.load_state_dict(checkpoint['state_dict'])
         else:

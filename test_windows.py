@@ -109,6 +109,9 @@ def get_next_video_index(dataset, start_index, max_index):
         video_id = video_info['video_id']
         if prev_video_id != video_id:
             break
+    if index + 1 == max_index:
+        # we reached the end. But python loop doesn end with (end + 1)
+        index = max_index
     return prev_video_id, start_index, index
         
 def test_batch(dataset, model, opt, class_names, batch_size):
@@ -163,7 +166,8 @@ def test_batch(dataset, model, opt, class_names, batch_size):
                 output_dict["window_" + str(window_id)]["rgb_scores"] = rgb_scores
             idx += batch_size
                 
-        with open(dump_dir + "/" + cur_video_id, 'w') as outfile:
-            json.dump(output_dict, outfile)
+        with open(dump_dir + "/" + cur_video_id, 'w', encoding='utf-8') as outfile:
+            # json.dump(output_dict, outfile)
+            json.dump(output_dict, outfile, ensure_ascii=False, indent=2)
             output_dict = defaultdict(lambda: defaultdict(list))
         index = end_index
