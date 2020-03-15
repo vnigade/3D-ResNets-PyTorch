@@ -269,6 +269,11 @@ def parse_opts():
         '--teacher_pretrain_path', default='', type=str, help='Teacher pretrained model (.pth)')
     parser.add_argument(
         '--teacher_batch_size', default=128, type=int, help='Batch Size')
+    parser.add_argument(
+        '--resume_path_sim',
+        default='',
+        type=str,
+        help='Save data (.pth) of previous simnet training')
 
     args = parser.parse_args()
 

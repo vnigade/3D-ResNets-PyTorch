@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from models import resnet, pre_act_resnet, wide_resnet, resnext, densenet
+from models import resnet, pre_act_resnet, wide_resnet, resnext, densenet, simnet
 
 
 def generate_model(opt):
@@ -196,9 +196,17 @@ def generate_model(opt):
                     model.classifier.in_features, opt.n_finetune_classes)
             else:
                 model.fc = nn.Linear(model.fc.in_features,
-                                            opt.n_finetune_classes)
+                                     opt.n_finetune_classes)
 
             parameters = get_fine_tuning_parameters(model, opt.ft_begin_index)
             return model, parameters
 
+    return model, model.parameters()
+
+
+def generate_sim_model(opt):
+    model = simnet.SimNet(opt)
+    if not opt.no_cuda:
+        model = model.cuda()
+        model = nn.DataParallel(model, device_ids=None)
     return model, model.parameters()
