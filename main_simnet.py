@@ -8,7 +8,7 @@ from torch import optim
 from torch.optim import lr_scheduler
 
 from opts import parse_opts
-from model import generate_model
+from model import generate_model, generate_sim_model
 from mean import get_mean, get_std
 from spatial_transforms import (
     Compose, Normalize, Scale, CenterCrop, CornerCrop, MultiScaleCornerCrop,
@@ -18,33 +18,10 @@ from target_transforms import ClassLabel, VideoID
 from target_transforms import Compose as TargetCompose
 from dataset import get_training_set, get_validation_set, get_test_set
 from utils import Logger
-from train import train_epoch
-from KD_train import train_epoch as kd_train_epoch
-from KD_train import teacher_predictions
-from validation import val_epoch
+from train_simnet import train_epoch
+from validation_simnet import val_epoch
 import test
 import copy
-
-
-def load_teacher_model(opt):
-    assert opt.teacher_model is not None
-    local_opt = copy.deepcopy(opt)
-    local_opt.model = opt.teacher_model
-    local_opt.model_depth = opt.teacher_model_depth
-    local_opt.resnet_shortcut = opt.teacher_resnet_shortcut
-    local_opt.resnext_cardinality = opt.teacher_resnext_cardinality
-    local_opt.arch = '{}-{}'.format(local_opt.model, local_opt.model_depth)
-    local_opt.resume_path = os.path.join(opt.root_path, opt.teacher_model_path)
-    local_opt.pretrain_path = os.path.join(
-        opt.root_path, opt.teacher_pretrain_path)
-    model, _ = generate_model(local_opt)
-
-    print('loading teacher model checkpoint {}'.format(local_opt.resume_path))
-    checkpoint = torch.load(local_opt.resume_path)
-    assert local_opt.arch == checkpoint['arch']
-    model.load_state_dict(checkpoint['state_dict'])
-
-    return model
 
 
 if __name__ == '__main__':
@@ -69,9 +46,12 @@ if __name__ == '__main__':
 
     torch.manual_seed(opt.manual_seed)
 
-    model, parameters = generate_model(opt)
-    print(model)
-    criterion = nn.CrossEntropyLoss()
+    feature_model, _ = generate_model(opt)
+    sim_model, sim_parameters = generate_sim_model(opt)
+    print(feature_model)
+    feature_model.eval()
+
+    criterion = nn.L1Loss()
     if not opt.no_cuda:
         criterion = criterion.cuda()
 
@@ -100,20 +80,12 @@ if __name__ == '__main__':
         target_transform = ClassLabel()
         training_data = get_training_set(opt, spatial_transform,
                                          temporal_transform, target_transform)
-        print("Total training data:", len(training_data))
         train_loader = torch.utils.data.DataLoader(
             training_data,
             batch_size=opt.batch_size,
             shuffle=True,
             num_workers=opt.n_threads,
             pin_memory=True)
-        if opt.kd_train:
-            teacher_train_loader = torch.utils.data.DataLoader(
-                training_data,
-                batch_size=opt.teacher_batch_size,
-                shuffle=True,
-                num_workers=opt.n_threads,
-                pin_memory=True)
         train_logger = Logger(
             os.path.join(opt.result_path, 'train.log'),
             ['epoch', 'loss', 'acc', 'lr'])
@@ -126,7 +98,7 @@ if __name__ == '__main__':
         else:
             dampening = opt.dampening
         optimizer = optim.SGD(
-            parameters,
+            sim_parameters,
             lr=opt.learning_rate,
             momentum=opt.momentum,
             dampening=dampening,
@@ -155,60 +127,40 @@ if __name__ == '__main__':
 
     if opt.resume_path:
         print('loading checkpoint {}'.format(opt.resume_path))
-        assert os.path.exists(opt.resume_path), "Resume path does not exist".format(opt.resume_path)
         checkpoint = torch.load(opt.resume_path)
         print(opt.arch, checkpoint['arch'])
         assert opt.arch == checkpoint['arch']
 
-        opt.begin_epoch = checkpoint['epoch']
-        res = [val for key, val in checkpoint['state_dict'].items() if 'module' in key]
-        # if not opt.no_cuda:
-        if len(res) == 0:
+        if not opt.no_cuda:
             # Model wrapped around DataParallel but checkpoints are not
-            model.module.load_state_dict(checkpoint['state_dict'])
+            feature_model.module.load_state_dict(checkpoint['state_dict'])
         else:
-            model.load_state_dict(checkpoint['state_dict'])
+            feature_model.load_state_dict(checkpoint['state_dict'])
+
+    if opt.resume_path_sim != '':
+        print('loading checkpoint {}'.format(opt.resume_path_sim))
+        checkpoint = torch.load(opt.resume_path_sim)
+        print(opt.arch, checkpoint['arch'])
+        assert opt.arch == checkpoint['arch']
+
+        opt.begin_epoch = checkpoint['epoch']
+        if not opt.no_cuda:
+            # Model wrapped around DataParallel but checkpoints are not
+            sim_model.module.load_state_dict(checkpoint['state_dict'])
+        else:
+            sim_model.load_state_dict(checkpoint['state_dict'])
         if not opt.no_train:
             optimizer.load_state_dict(checkpoint['optimizer'])
 
     print('Starting run from epoch ', opt.begin_epoch)
-    if opt.kd_train:
-        teacher_model = load_teacher_model(opt)
-        teacher_predictions(teacher_model, teacher_train_loader, opt)
-        del teacher_train_loader
-        del teacher_model
 
     for i in range(opt.begin_epoch, opt.n_epochs + 1):
         if not opt.no_train:
-            if opt.kd_train:
-                # teacher_model = load_teacher_model(opt)
-                kd_train_epoch(i, train_loader, model, None, optimizer, opt,
-                               train_logger, train_batch_logger)
-            else:
-                train_epoch(i, train_loader, model, criterion, optimizer, opt,
-                            train_logger, train_batch_logger)
+            train_epoch(i, train_loader, sim_model, feature_model, criterion, optimizer, opt,
+                        train_logger, train_batch_logger)
         if not opt.no_val:
-            validation_loss = val_epoch(i, val_loader, model, criterion, opt,
+            validation_loss = val_epoch(i, val_loader, sim_model, feature_model, criterion, opt,
                                         val_logger)
 
         if not opt.no_train and not opt.no_val:
             scheduler.step(validation_loss)
-
-    if opt.test:
-        spatial_transform = Compose([
-            Scale(int(opt.sample_size / opt.scale_in_test)),
-            CornerCrop(opt.sample_size, opt.crop_position_in_test),
-            ToTensor(opt.norm_value), norm_method
-        ])
-        temporal_transform = LoopPadding(opt.sample_duration)
-        target_transform = VideoID()
-
-        test_data = get_test_set(opt, spatial_transform, temporal_transform,
-                                 target_transform)
-        test_loader = torch.utils.data.DataLoader(
-            test_data,
-            batch_size=opt.batch_size,
-            shuffle=False,
-            num_workers=opt.n_threads,
-            pin_memory=True)
-        test.test(test_loader, model, opt, test_data.class_names)
