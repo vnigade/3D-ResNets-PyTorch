@@ -6,6 +6,7 @@ import functools
 import json
 import copy
 import math
+import numpy as np
 
 from utils import load_value_file
 import itertools
@@ -187,7 +188,7 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
         sample_list = list(itertools.product(*sample_list))
         for sample_pair in sample_list:
             sample = {
-                "video_path": video_path,
+                "video": video_path,
                 "video_id": video_names[i],
                 "sample_pair": sample_pair,
                 "label": label
@@ -200,7 +201,7 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
             sample_list = list(itertools.product(*sample_list))
             for sample_pair in sample_list:
                 sample = {
-                    "video_path": video_path,
+                    "video": video_path,
                     "video_id": video_names[i],
                     "sample_pair": sample_pair,
                     "label": label
@@ -208,11 +209,11 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
                 dataset.append(sample)
         elif len(next_samples) > 0:
             label = 0
-            sample_list = [next_samples, cur_samples]
+            sample_list = [cur_samples, next_samples]
             sample_list = list(itertools.product(*sample_list))
             for sample_pair in sample_list:
                 sample = {
-                    "video_path": video_path,
+                    "video": video_path,
                     "video_id": video_names[i],
                     "sample_pair": sample_pair,
                     "label": label
@@ -297,7 +298,7 @@ class PKUMMD_SIM(data.Dataset):
         clip2 = torch.stack(clip2, 0).permute(1, 0, 2, 3)
 
         # Target
-        target = self.data[index]['label']
+        target = np.asarray(self.data[index]['label'], dtype=np.float32)
 
         return clip1, clip2, target, index
 

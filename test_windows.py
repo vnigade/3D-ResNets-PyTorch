@@ -7,9 +7,38 @@ import sys
 import json
 from collections import defaultdict
 import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity as sk_cosine_similarity
 
 from utils import AverageMeter
 
+def cosine_similarity(vec1, vec2):
+    vec1 = vec1.reshape(1, -1)
+    vec2 = vec2.reshape(1, -1)
+    alpha = sk_cosine_similarity(vec1, vec2)
+    alpha = alpha[0][0]
+    return alpha
+
+def print_cosine_similarity(output_no_softmax, output_softmax, prev_output, prev_output_softmax, sim_model=None):
+    if prev_output is None:
+        return
+    simnet_input1 = prev_output
+    simnet_input2 = output_no_softmax
+ 
+    output_no_softmax = output_no_softmax.cpu().detach().numpy()
+    prev_output = prev_output.cpu().detach().numpy()
+    no_softmax_alpha = cosine_similarity(output_no_softmax, prev_output)
+
+    output_softmax = output_softmax.cpu().detach().numpy()
+    prev_output_softmax = prev_output_softmax.cpu().detach().numpy()
+    softmax_alpha = cosine_similarity(output_softmax, prev_output_softmax)
+
+    if sim_model is not None:
+        inputs = torch.cat([simnet_input1, simnet_input2], dim=-1)
+        outputs = sim_model(inputs)
+        outputs = torch.sigmoid(outputs)
+        simnet_alpha = outputs.cpu().detach().numpy()[0]
+    print("COSINE", no_softmax_alpha, softmax_alpha, simnet_alpha.item())
+    
 
 def calculate_video_results(output_buffer, video_id, test_results, class_names):
     video_outputs = torch.stack(output_buffer)
@@ -26,7 +55,7 @@ def calculate_video_results(output_buffer, video_id, test_results, class_names):
     test_results['results'][video_id] = video_results
 
 
-def test(data_loader, model, opt, class_names):
+def test(data_loader, model, opt, class_names, sim_model=None):
     print('test')
 
     model.eval()
@@ -39,6 +68,8 @@ def test(data_loader, model, opt, class_names):
     previous_video_id = ''
     test_results = {'results': {}}
     prev_video_id = None
+    prev_output = None
+    prev_output_softmax = None
     dump_dir = os.path.join(opt.root_path, opt.scores_dump_path)
     if not os.path.exists(dump_dir):
         os.makedirs(dump_dir)
@@ -82,7 +113,12 @@ def test(data_loader, model, opt, class_names):
         prediction_time = (timeit.default_timer() - start_time) * 1000
         batch_time.update(prediction_time)
         if not opt.no_softmax_in_test:
-           outputs = F.softmax(outputs)
+            output_no_softmax = outputs
+            outputs = F.softmax(outputs, dim=1)
+            output_softmax = outputs
+            print_cosine_similarity(output_no_softmax, output_softmax, prev_output, prev_output_softmax, sim_model)
+            prev_output = output_no_softmax
+            prev_output_softmax = output_softmax
         outputs = torch.mean(outputs, dim=0)
         # batch_time.update((timeit.default_timer() - start_time) * 1000)
         # assert (idx + 1) == int(video_info[1][0]) 
@@ -91,7 +127,7 @@ def test(data_loader, model, opt, class_names):
         idx = int(window_id)
         rgb_scores = outputs.cpu().detach().numpy().flatten().tolist()
         target_actions = targets
-        # print(video_id, idx, np.argmax(np.asarray(rgb_scores, dtype=float)), target_actions)
+        # print(video_id, "-window_{}".format(idx), "RGB action", np.argmax(np.asarray(rgb_scores, dtype=float)))
         output_dict["window_" + str(idx)]["rgb_scores"] = rgb_scores 
 
     if prev_video_id is not None:

@@ -46,10 +46,12 @@ if __name__ == '__main__':
 
     torch.manual_seed(opt.manual_seed)
 
+    # sim_model, sim_parameters = generate_sim_model(opt)
     feature_model, _ = generate_model(opt)
-    sim_model, sim_parameters = generate_sim_model(opt)
     print(feature_model)
     feature_model.eval()
+    sim_model, sim_parameters = generate_sim_model(opt)
+    print(sim_model)
 
     criterion = nn.L1Loss()
     if not opt.no_cuda:
