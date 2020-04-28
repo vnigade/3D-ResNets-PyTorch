@@ -53,7 +53,8 @@ if __name__ == '__main__':
     sim_model, sim_parameters = generate_sim_model(opt)
     print(sim_model)
 
-    criterion = nn.L1Loss()
+    # criterion = nn.L1Loss()
+    criterion = nn.BCEWithLogitsLoss()
     if not opt.no_cuda:
         criterion = criterion.cuda()
 

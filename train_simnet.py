@@ -27,14 +27,16 @@ def train_epoch(epoch, data_loader, sim_model, feature_model, criterion, optimiz
         inputs1 = Variable(inputs1)
         inputs2 = Variable(inputs2)
 
+        inputs2 = inputs2.cpu()
         outputs1 = feature_model(inputs1)
+        inputs2 = inputs2.cuda()
         outputs2 = feature_model(inputs2)
 
         targets = Variable(targets)
         targets = targets.view(-1, 1)
         inputs = torch.cat([outputs1, outputs2], dim=-1)
         outputs = sim_model(inputs)
-        outputs = torch.sigmoid(outputs)
+        # outputs = torch.sigmoid(outputs) # comment this when using loss with logits
         # print("Inputs", inputs.shape, "Outputs", outputs.shape, "Targets", targets.shape)
         loss = criterion(outputs, targets)
         # acc = calculate_accuracy(outputs, targets)
