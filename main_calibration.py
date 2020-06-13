@@ -23,6 +23,9 @@ import test
 import copy
 
 
+np.random.seed(0)
+torch.manual_seed(0)
+
 if __name__ == '__main__':
     opt = parse_opts()
     if opt.root_path != '':
@@ -74,13 +77,13 @@ if __name__ == '__main__':
         target_transform = ClassLabel()
         training_data = get_training_set(opt, spatial_transform,
                                          temporal_transform, target_transform)
-        train_loader = torch.utils.data.DataLoader(
+        data_loader = torch.utils.data.DataLoader(
             training_data,
             batch_size=opt.batch_size,
             shuffle=True,
             num_workers=opt.n_threads,
             pin_memory=True)
-        train_logger = Logger(
+        logger = Logger(
             os.path.join(opt.result_path, 'train.log'),
             ['epoch', 'loss', 'acc', 'lr'])
         train_batch_logger = Logger(
@@ -91,15 +94,6 @@ if __name__ == '__main__':
             dampening = 0
         else:
             dampening = opt.dampening
-        optimizer = optim.SGD(
-            sim_parameters,
-            lr=opt.learning_rate,
-            momentum=opt.momentum,
-            dampening=dampening,
-            weight_decay=opt.weight_decay,
-            nesterov=opt.nesterov)
-        scheduler = lr_scheduler.ReduceLROnPlateau(
-            optimizer, 'min', patience=opt.lr_patience)
     if not opt.no_val:
         spatial_transform = Compose([
             Scale(opt.sample_size),
@@ -110,13 +104,13 @@ if __name__ == '__main__':
         target_transform = ClassLabel()
         validation_data = get_validation_set(
             opt, spatial_transform, temporal_transform, target_transform)
-        val_loader = torch.utils.data.DataLoader(
+        data_loader = torch.utils.data.DataLoader(
             validation_data,
             batch_size=opt.batch_size,
             shuffle=False,
             num_workers=opt.n_threads,
             pin_memory=True)
-        val_logger = Logger(
+        logger = Logger(
             os.path.join(opt.result_path, 'val.log'), ['epoch', 'loss', 'acc'])
 
     if opt.resume_path:
@@ -133,4 +127,4 @@ if __name__ == '__main__':
 
     print('Starting model calibration ', opt.begin_epoch)
 
-    calibrate(feature_model, train_loader, opt, train_logger)
+    calibrate(feature_model, data_loader, opt, logger)
