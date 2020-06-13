@@ -176,15 +176,17 @@ def generate_model(opt):
         if opt.pretrain_path:
             print('loading pretrained model {}'.format(opt.pretrain_path))
             pretrain = torch.load(opt.pretrain_path)
+            print("Pretrain arch", pretrain['arch'])
             assert opt.arch == pretrain['arch']
 
             model.load_state_dict(pretrain['state_dict'])
-
+            ft_begin_index = opt.ft_begin_index
             if opt.model in ['mobilenet', 'mobilenetv2', 'shufflenet', 'shufflenetv2']:
                 model.module.classifier = nn.Sequential(
                     nn.Dropout(0.9),
                     nn.Linear(model.module.classifier[1].in_features, opt.n_finetune_classes))
                 model.module.classifier = model.module.classifier.cuda()
+                ft_begin_index = 'complete' if ft_begin_index == 0 else 'last_layer'
             elif opt.model == 'densenet':
                 model.module.classifier = nn.Linear(
                     model.module.classifier.in_features, opt.n_finetune_classes)
@@ -194,7 +196,7 @@ def generate_model(opt):
                                             opt.n_finetune_classes)
                 model.module.fc = model.module.fc.cuda()
 
-            parameters = get_fine_tuning_parameters(model, opt.ft_begin_index)
+            parameters = get_fine_tuning_parameters(model, ft_begin_index)
             return model, parameters
     else:
         if opt.pretrain_path:
@@ -203,12 +205,13 @@ def generate_model(opt):
             assert opt.arch == pretrain['arch']
 
             model.load_state_dict(pretrain['state_dict'])
-
+            ft_begin_index = opt.ft_begin_index
             if opt.model in ['mobilenet', 'mobilenetv2', 'shufflenet', 'shufflenetv2']:
                 model.module.classifier = nn.Sequential(
                     nn.Dropout(0.9),
                     nn.Linear(model.module.classifier[1].in_features, opt.n_finetune_classes))
                 model.module.classifier = model.module.classifier.cuda()
+                ft_begin_index = 'complete' if ft_begin_index == 0 else 'last_layer'
             elif opt.model == 'densenet':
                 model.classifier = nn.Linear(
                     model.classifier.in_features, opt.n_finetune_classes)
@@ -216,7 +219,7 @@ def generate_model(opt):
                 model.fc = nn.Linear(model.fc.in_features,
                                      opt.n_finetune_classes)
 
-            parameters = get_fine_tuning_parameters(model, opt.ft_begin_index)
+            parameters = get_fine_tuning_parameters(model, ft_begin_index)
             return model, parameters
 
     return model, model.parameters()
