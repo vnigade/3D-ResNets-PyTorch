@@ -8,7 +8,7 @@ from torch import optim
 from torch.optim import lr_scheduler
 
 from opts import parse_opts
-from model import generate_model
+from model import generate_model, generate_sim_model
 from mean import get_mean, get_std
 from spatial_transforms import (
     Compose, Normalize, Scale, CenterCrop, CornerCrop, MultiScaleCornerCrop,
@@ -23,6 +23,8 @@ from validation import val_epoch
 import test_windows as test
 import timeit
 from utils import AverageMeter
+
+torch.backends.cudnn.enabled = False
 
 def model_time(model, opt):
     avg_time = AverageMeter()
@@ -115,7 +117,22 @@ if __name__ == '__main__':
             os.path.join(opt.result_path, 'val.log'), ['epoch', 'loss', 'acc'])
         validation_loss = val_epoch(opt.begin_epoch, val_loader, model, criterion, opt,
                                     val_logger)
-
+  
+    # similarity model for testing
+    sim_model = None
+    if opt.resume_path_sim != '':
+        opt.n_finetune_classes = opt.n_classes
+        sim_model, _ = generate_sim_model(opt)
+        print('loading similarity model checkpoint {}'.format(opt.resume_path_sim))
+        checkpoint = torch.load(opt.resume_path_sim)
+        print(opt.arch, checkpoint['arch'])
+        assert opt.arch == checkpoint['arch']
+        if not opt.no_cuda:
+            sim_model.module.load_state_dict(checkpoint['state_dict'])
+        else:
+            sim_model.load_state_dict(checkpoint['state_dict'])
+        sim_model.eval()
+        
     if opt.test:
         spatial_transform = Compose([
             # Scale(int(opt.sample_size / opt.scale_in_test)),
@@ -136,5 +153,6 @@ if __name__ == '__main__':
             shuffle=False,
             num_workers=opt.n_threads,
             pin_memory=True)
-        # test.test(test_loader, model, opt, test_data.class_names)
-        test.test_batch(test_data, model, opt, test_data.class_names, 16)
+        # test.test(test_loader, model, opt, test_data.class_names, sim_model=sim_model)
+        print("Predicting batch size.. 64")
+        test.test_batch(test_data, model, opt, test_data.class_names, 32)

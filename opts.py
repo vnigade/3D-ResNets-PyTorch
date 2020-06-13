@@ -270,6 +270,11 @@ def parse_opts():
     parser.add_argument(
         '--teacher_batch_size', default=128, type=int, help='Batch Size')
     parser.add_argument(
+        '--teacher_sample_size',
+        default=112,
+        type=int,
+        help='Height and width of inputs')
+    parser.add_argument(
         '--resume_path_sim',
         default='',
         type=str,

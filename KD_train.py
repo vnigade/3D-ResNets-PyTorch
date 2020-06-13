@@ -42,27 +42,27 @@ def train_epoch(epoch, data_loader, model, teacher_model, optimizer, opt,
                 epoch_logger, batch_logger):
     print('train at epoch {}'.format(epoch))
     model.train()
-    # teacher_model.eval()
+    teacher_model.eval()
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
     accuracies = AverageMeter()
     # Get teacher model outputs
-    if not _teacher_outputs_dict:
-        print("Executing teacher model...")
-        for i, (inputs, targets, indices) in enumerate(data_loader):
-            if not opt.no_cuda:
-                inputs, targets = inputs.cuda(async=True), targets.cuda(async=True)
+    # if not _teacher_outputs_dict:
+    #    print("Executing teacher model...")
+    #    for i, (inputs, targets, indices) in enumerate(data_loader):
+    #        if not opt.no_cuda:
+    #            inputs, targets = inputs.cuda(async=True), targets.cuda(async=True)
 
-            inputs = Variable(inputs)
-            targets = Variable(targets)
-            teacher_output = teacher_model(inputs).data.cpu().numpy()
+    #        inputs = Variable(inputs)
+    #        targets = Variable(targets)
+    #        teacher_output = teacher_model(inputs).data.cpu().numpy()
             # print("Teacher output shape", teacher_output.shape)
             # teacher_outputs.append(teacher_output)
-            for i in range(len(indices)):
-                _teacher_outputs_dict[indices[i].item()] = teacher_output[i]
-    else:
-        print("Skipping teacher model execution...")
+    #        for i in range(len(indices)):
+    #            _teacher_outputs_dict[indices[i].item()] = teacher_output[i]
+    #else:
+    #    print("Skipping teacher model execution...")
 
     # Check if it is teacher output
     # print("teacher output", _teacher_outputs_dict.keys())
@@ -77,22 +77,24 @@ def train_epoch(epoch, data_loader, model, teacher_model, optimizer, opt,
         targets = Variable(targets)
         outputs = model(inputs)
         # loss = criterion(outputs, targets)
-        teacher_outputs = []
-        for idx in indices:
+        # teacher_outputs = []
+        # for idx in indices:
             # print("idx, teacher output", idx, _teacher_outputs_dict[idx.item()])
-            teacher_outputs.append(_teacher_outputs_dict[idx.item()])
-        teacher_outputs = np.asarray(teacher_outputs)
+        #    teacher_outputs.append(_teacher_outputs_dict[idx.item()])
+        #teacher_outputs = np.asarray(teacher_outputs)
 
-        teacher_output = torch.from_numpy(teacher_outputs)
-        if not opt.no_cuda:
-            teacher_output = teacher_output.cuda(async=True)
-            teacher_output = Variable(teacher_output, requires_grad=False)
-
+        # teacher_output = torch.from_numpy(teacher_outputs)
+        #if not opt.no_cuda:
+        #    teacher_output = teacher_output.cuda(async=True)
+        #    teacher_output = Variable(teacher_output, requires_grad=False)
+      
+        # get teacher output. 
+        teacher_output = teacher_model(inputs)
         loss = loss_kd(outputs, teacher_output, targets)
         acc = calculate_accuracy(outputs, targets)
 
-        losses.update(loss.data[0], inputs.size(0))
-        # losses.update(loss.data, inputs.size(0))
+        # losses.update(loss.data[0], inputs.size(0))
+        losses.update(loss.data.item(), inputs.size(0))
 
         accuracies.update(acc, inputs.size(0))
 

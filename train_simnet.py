@@ -11,7 +11,7 @@ def train_epoch(epoch, data_loader, sim_model, feature_model, criterion, optimiz
                 epoch_logger, batch_logger):
     print('train at epoch {}'.format(epoch))
 
-    feature_model.train()
+    feature_model.eval()
     sim_model.train()
 
     batch_time = AverageMeter()
@@ -31,16 +31,18 @@ def train_epoch(epoch, data_loader, sim_model, feature_model, criterion, optimiz
         outputs2 = feature_model(inputs2)
 
         targets = Variable(targets)
-        inputs = torch.cat([inputs1, inputs2], dim=-1)
+        targets = targets.view(-1, 1)
+        inputs = torch.cat([outputs1, outputs2], dim=-1)
         outputs = sim_model(inputs)
-
+        outputs = torch.sigmoid(outputs)
+        # print("Inputs", inputs.shape, "Outputs", outputs.shape, "Targets", targets.shape)
         loss = criterion(outputs, targets)
-        acc = calculate_accuracy(outputs, targets)
+        # acc = calculate_accuracy(outputs, targets)
 
         losses.update(loss.data[0], inputs.size(0))
         # losses.update(loss.data, inputs.size(0))
 
-        accuracies.update(acc, inputs.size(0))
+        # accuracies.update(acc, inputs.size(0))
 
         optimizer.zero_grad()
         loss.backward()

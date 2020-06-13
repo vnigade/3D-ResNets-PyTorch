@@ -42,7 +42,13 @@ def load_teacher_model(opt):
     print('loading teacher model checkpoint {}'.format(local_opt.resume_path))
     checkpoint = torch.load(local_opt.resume_path)
     assert local_opt.arch == checkpoint['arch']
-    model.load_state_dict(checkpoint['state_dict'])
+    res = [val for key, val in checkpoint['state_dict'].items() if 'module' in key]
+    # if not opt.no_cuda:
+    if len(res) == 0:
+        # Model wrapped around DataParallel but checkpoints are not
+        model.module.load_state_dict(checkpoint['state_dict'])
+    else:
+        model.load_state_dict(checkpoint['state_dict'])
 
     return model
 
@@ -100,6 +106,7 @@ if __name__ == '__main__':
         target_transform = ClassLabel()
         training_data = get_training_set(opt, spatial_transform,
                                          temporal_transform, target_transform)
+        print("Total training data:", len(training_data))
         train_loader = torch.utils.data.DataLoader(
             training_data,
             batch_size=opt.batch_size,
@@ -154,12 +161,15 @@ if __name__ == '__main__':
 
     if opt.resume_path:
         print('loading checkpoint {}'.format(opt.resume_path))
+        assert os.path.exists(opt.resume_path), "Resume path does not exist".format(opt.resume_path)
         checkpoint = torch.load(opt.resume_path)
         print(opt.arch, checkpoint['arch'])
         assert opt.arch == checkpoint['arch']
 
         opt.begin_epoch = checkpoint['epoch']
-        if not opt.no_cuda:
+        res = [val for key, val in checkpoint['state_dict'].items() if 'module' in key]
+        # if not opt.no_cuda:
+        if len(res) == 0:
             # Model wrapped around DataParallel but checkpoints are not
             model.module.load_state_dict(checkpoint['state_dict'])
         else:
@@ -170,15 +180,15 @@ if __name__ == '__main__':
     print('Starting run from epoch ', opt.begin_epoch)
     if opt.kd_train:
         teacher_model = load_teacher_model(opt)
-        teacher_predictions(teacher_model, teacher_train_loader, opt)
-        del teacher_train_loader
-        del teacher_model
+        # teacher_predictions(teacher_model, teacher_train_loader, opt)
+        # del teacher_train_loader
+        # del teacher_model
 
     for i in range(opt.begin_epoch, opt.n_epochs + 1):
         if not opt.no_train:
             if opt.kd_train:
                 # teacher_model = load_teacher_model(opt)
-                kd_train_epoch(i, train_loader, model, None, optimizer, opt,
+                kd_train_epoch(i, train_loader, model, teacher_model, optimizer, opt,
                                train_logger, train_batch_logger)
             else:
                 train_epoch(i, train_loader, model, criterion, optimizer, opt,
