@@ -22,7 +22,13 @@ from train import train_epoch
 from validation import val_epoch
 import copy
 
-
+_criterion = None
+def loss_func(outputs, targets):
+    global _criterion
+    targets = targets.view(-1, 1)
+    targets = targets.float()
+    return _criterion(outputs, targets)
+     
 if __name__ == '__main__':
     opt = parse_opts()
     if opt.root_path != '':
@@ -36,7 +42,7 @@ if __name__ == '__main__':
     opt.scales = [opt.initial_scale]
     for i in range(1, opt.n_scales):
         opt.scales.append(opt.scales[-1] * opt.scale_step)
-    opt.arch = '{}-{}'.format(opt.model, opt.model_depth)
+    opt.arch = '{}'.format(opt.model)
     opt.mean = get_mean(opt.norm_value, dataset=opt.mean_dataset)
     opt.std = get_std(opt.norm_value)
     print(opt)
@@ -47,9 +53,10 @@ if __name__ == '__main__':
 
     model, parameters = generate_model(opt)
     print(model)
-    criterion = nn.BCEWithLogitsLoss()
+    _criterion = nn.BCEWithLogitsLoss()
     if not opt.no_cuda:
-        criterion = criterion.cuda()
+        _criterion = _criterion.cuda()
+    criterion = loss_func
 
     if opt.no_mean_norm and not opt.std_norm:
         norm_method = Normalize([0, 0, 0], [1, 1, 1])
@@ -127,7 +134,6 @@ if __name__ == '__main__':
         assert os.path.exists(
             opt.resume_path), "Resume path does not exist".format(opt.resume_path)
         checkpoint = torch.load(opt.resume_path)
-        print(opt.arch, checkpoint['arch'])
         assert opt.arch == checkpoint['arch']
 
         opt.begin_epoch = checkpoint['epoch']

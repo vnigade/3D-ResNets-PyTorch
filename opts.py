@@ -276,6 +276,7 @@ def parse_opts():
         help='Save data (.pth) of previous simnet training')
     parser.add_argument(
         '--no_cuda_predict', action='store_true', help='If true, cuda is not used during predict')
+    parser.add_argument('--width_mult', default=1.0, type=float, help='The applied width multiplier to scale number of filters')
     parser.set_defaults(no_cuda_predict=False)
 
     args = parser.parse_args()

@@ -176,7 +176,7 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
             no_action_end_t = begin_t
             annotation = 0
             # print("Creating samples for no action",
-            #      video_id, no_action_begin_t, no_action_end_t)
+            #       video_id, no_action_begin_t, no_action_end_t)
             samples = make_samples(n_samples_for_each_video, video_path, video_names[i], no_action_begin_t,
                                    no_action_end_t, annotation, sample_duration)
             dataset.extend(samples)
@@ -185,7 +185,7 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
         # Handle the actual action
         annotation = 1
         # print("Creating samples for action", video_id,
-        #       begin_t, end_t)
+        #        begin_t, end_t)
         samples = make_samples(n_samples_for_each_video, video_path,
                                video_names[i], begin_t, end_t, annotation, sample_duration)
         dataset.extend(samples)

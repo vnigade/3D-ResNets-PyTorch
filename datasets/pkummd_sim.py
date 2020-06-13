@@ -207,7 +207,7 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
                     "label": label
                 }
                 dataset.append(sample)
-        elif len(next_samples) > 0:
+        if len(next_samples) > 0:
             label = 0
             sample_list = [cur_samples, next_samples]
             sample_list = list(itertools.product(*sample_list))
