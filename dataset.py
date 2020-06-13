@@ -4,12 +4,13 @@ from datasets.ucf101 import UCF101
 from datasets.hmdb51 import HMDB51
 from datasets.pkummd import PKUMMD
 from datasets.pkummd_sim import PKUMMD_SIM
+from datasets.pkummd_ed import PKUMMD_ED
 
 
 def get_training_set(opt, spatial_transform, temporal_transform,
                      target_transform):
     assert opt.dataset in ['kinetics',
-                           'activitynet', 'ucf101', 'hmdb51', 'pkummd', 'pkummd_sim']
+                           'activitynet', 'ucf101', 'hmdb51', 'pkummd', 'pkummd_sim', 'pkummd_ed']
 
     if opt.dataset == 'kinetics':
         training_data = Kinetics(
@@ -62,14 +63,22 @@ def get_training_set(opt, spatial_transform, temporal_transform,
             spatial_transform=spatial_transform,
             temporal_transform=temporal_transform,
             target_transform=target_transform)
-
+    elif opt.dataset == "pkummd_ed":
+        training_data = PKUMMD_ED(
+            opt.video_path,
+            opt.annotation_path,
+            'training',
+            False,
+            spatial_transform=spatial_transform,
+            temporal_transform=temporal_transform,
+            target_transform=target_transform)
     return training_data
 
 
 def get_validation_set(opt, spatial_transform, temporal_transform,
                        target_transform):
     assert opt.dataset in ['kinetics',
-                           'activitynet', 'ucf101', 'hmdb51', 'pkummd', 'pkummd_sim']
+                           'activitynet', 'ucf101', 'hmdb51', 'pkummd', 'pkummd_sim', 'pkummd_ed']
 
     if opt.dataset == 'kinetics':
         validation_data = Kinetics(
@@ -125,6 +134,17 @@ def get_validation_set(opt, spatial_transform, temporal_transform,
             sample_duration=opt.sample_duration)
     elif opt.dataset == 'pkummd_sim':
         validation_data = PKUMMD_SIM(
+            opt.video_path,
+            opt.annotation_path,
+            'validation',
+            False,
+            opt.n_val_samples,
+            spatial_transform=spatial_transform,
+            temporal_transform=temporal_transform,
+            target_transform=target_transform,
+            sample_duration=opt.sample_duration)
+    elif opt.dataset == 'pkummd_ed':
+        validation_data = PKUMMD_ED(
             opt.video_path,
             opt.annotation_path,
             'validation',
@@ -205,6 +225,8 @@ def get_test_set(opt, spatial_transform, temporal_transform, target_transform):
             window_stride=opt.window_stride,
             scores_dump_path=(opt.root_path + "/" + opt.scores_dump_path))
     elif opt.dataset == "pkummd_sim":
+        raise NotImplemented()
+    elif opt.dataset == "pkummd_ed":
         raise NotImplemented()
 
     return test_data

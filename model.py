@@ -1,12 +1,12 @@
 import torch
 from torch import nn
 
-from models import resnet, pre_act_resnet, wide_resnet, resnext, densenet, simnet
+from models import resnet, pre_act_resnet, wide_resnet, resnext, densenet, simnet, mobilenet
 
 
 def generate_model(opt):
     assert opt.model in [
-        'resnet', 'preresnet', 'wideresnet', 'resnext', 'densenet'
+        'resnet', 'preresnet', 'wideresnet', 'resnext', 'densenet', 'mobilenet'
     ]
 
     if opt.model == 'resnet':
@@ -161,6 +161,13 @@ def generate_model(opt):
                 sample_size=opt.sample_size,
                 sample_duration=opt.sample_duration)
 
+    elif opt.model == 'mobilenet':
+        from models.mobilenet import get_fine_tuning_parameters
+        model = mobilenet.get_model(
+            num_classes=opt.n_classes,
+            sample_size=opt.sample_size,
+            width_mult=opt.width_mult)
+
     if not opt.no_cuda:
         if not opt.no_cuda_predict:
             model = model.cuda()
@@ -173,7 +180,12 @@ def generate_model(opt):
 
             model.load_state_dict(pretrain['state_dict'])
 
-            if opt.model == 'densenet':
+            if opt.model in ['mobilenet', 'mobilenetv2', 'shufflenet', 'shufflenetv2']:
+                model.module.classifier = nn.Sequential(
+                    nn.Dropout(0.9),
+                    nn.Linear(model.module.classifier[1].in_features, opt.n_finetune_classes))
+                model.module.classifier = model.module.classifier.cuda()
+            elif opt.model == 'densenet':
                 model.module.classifier = nn.Linear(
                     model.module.classifier.in_features, opt.n_finetune_classes)
                 model.module.classifier = model.module.classifier.cuda()
@@ -192,7 +204,12 @@ def generate_model(opt):
 
             model.load_state_dict(pretrain['state_dict'])
 
-            if opt.model == 'densenet':
+            if opt.model in ['mobilenet', 'mobilenetv2', 'shufflenet', 'shufflenetv2']:
+                model.module.classifier = nn.Sequential(
+                    nn.Dropout(0.9),
+                    nn.Linear(model.module.classifier[1].in_features, opt.n_finetune_classes))
+                model.module.classifier = model.module.classifier.cuda()
+            elif opt.model == 'densenet':
                 model.classifier = nn.Linear(
                     model.classifier.in_features, opt.n_finetune_classes)
             else:
