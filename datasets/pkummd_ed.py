@@ -149,7 +149,7 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
         idx_to_class[label] = name
 
     dataset = []
-    no_action_start_frame = 0
+    prev_video_id = None
     for i in range(len(video_names)):
         if i != 0 and i % 1000 == 0:
             print('dataset loading [{}/{}]'.format(i, len(video_names)))
@@ -160,6 +160,12 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
         if not os.path.exists(video_path):
             continue
 
+        video_id = get_video_from_clip(video_names[i])
+
+        if prev_video_id is None or prev_video_id != video_id:
+            no_action_start_frame = 0
+
+        prev_video_id = video_id
         annotation = annotations[i]
         begin_t = annotation['start_frame']
         end_t = annotation['end_frame']
@@ -169,8 +175,8 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
             no_action_begin_t = no_action_start_frame
             no_action_end_t = begin_t
             annotation = 0
-            print("Creating samples for no action",
-                  no_action_begin_t, no_action_end_t)
+            # print("Creating samples for no action",
+            #      video_id, no_action_begin_t, no_action_end_t)
             samples = make_samples(n_samples_for_each_video, video_path, video_names[i], no_action_begin_t,
                                    no_action_end_t, annotation, sample_duration)
             dataset.extend(samples)
@@ -178,8 +184,8 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
 
         # Handle the actual action
         annotation = 1
-        print("Creating samples for action",
-              no_action_begin_t, no_action_end_t)
+        # print("Creating samples for action", video_id,
+        #       begin_t, end_t)
         samples = make_samples(n_samples_for_each_video, video_path,
                                video_names[i], begin_t, end_t, annotation, sample_duration)
         dataset.extend(samples)
