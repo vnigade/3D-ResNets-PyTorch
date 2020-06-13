@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import timeit
 import os
 import sys
+from  pathlib import Path
 import json
 from collections import defaultdict
 import numpy as np
@@ -104,12 +105,15 @@ def test(data_loader, model, opt, class_names, sim_model=None):
             inputs = inputs[:,:,offsets,:,:]
         elif opt.window_size < opt.sample_duration:
             raise NotImplemented()
-            
-        inputs = inputs.cuda()
-        torch.cuda.synchronize()
+           
+        if not opt.no_cuda: 
+            inputs = inputs.cuda()
+            torch.cuda.synchronize()
         start_time = timeit.default_timer()
         outputs = model(inputs)
-        torch.cuda.synchronize()
+      
+        if not opt.no_cuda:
+            torch.cuda.synchronize()
         prediction_time = (timeit.default_timer() - start_time) * 1000
         batch_time.update(prediction_time)
         if not opt.no_softmax_in_test:
@@ -154,6 +158,12 @@ def test_batch(dataset, model, opt, class_names, batch_size):
     print('test')
 
     model.eval()
+    if opt.no_cuda_predict:
+        model = model.to(torch.device('cpu'))
+    else:
+        model = model.to('cuda')
+
+    # model.eval()
 
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -172,7 +182,14 @@ def test_batch(dataset, model, opt, class_names, batch_size):
     while index < total_windows:
         cur_video_id, start_index, end_index = get_next_video_index(dataset, index, total_windows)
         idx = start_index
-        while idx < end_index:
+        # If video file exist then skip this
+        video_id_exist = False
+        if os.path.exists(dump_dir + "/" + cur_video_id):
+            video_id_exist = True
+        else:
+            Path(dump_dir + "/" + cur_video_id).touch()
+             
+        while idx < end_index and video_id_exist == False:
             batch_start = idx
             batch_end = idx + batch_size
             if batch_end > end_index:
@@ -190,7 +207,11 @@ def test_batch(dataset, model, opt, class_names, batch_size):
             for (input, _) in batch:
                 inputs.append(input)
             inputs = torch.cat(inputs, dim=0)
-            inputs.cuda()
+            if not opt.no_cuda_predict:
+                inputs = inputs.to('cuda')
+            else:
+                inputs = inputs.to('cpu')
+            print("Input size", inputs.shape, inputs)
             outputs = model(inputs)
             if not opt.no_softmax_in_test:
                 outputs = F.softmax(outputs, dim=1)
@@ -201,9 +222,10 @@ def test_batch(dataset, model, opt, class_names, batch_size):
                 rgb_scores = outputs[i].flatten().tolist()
                 output_dict["window_" + str(window_id)]["rgb_scores"] = rgb_scores
             idx += batch_size
-                
-        with open(dump_dir + "/" + cur_video_id, 'w', encoding='utf-8') as outfile:
-            # json.dump(output_dict, outfile)
-            json.dump(output_dict, outfile, ensure_ascii=False, indent=2)
-            output_dict = defaultdict(lambda: defaultdict(list))
+               
+        if video_id_exist == False:
+            with open(dump_dir + "/" + cur_video_id, 'w', encoding='utf-8') as outfile:
+                # json.dump(output_dict, outfile)
+                json.dump(output_dict, outfile, ensure_ascii=False, indent=2)
+                output_dict = defaultdict(lambda: defaultdict(list))
         index = end_index

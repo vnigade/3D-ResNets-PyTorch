@@ -8,7 +8,7 @@ from torch import optim
 from torch.optim import lr_scheduler
 
 from opts import parse_opts
-from model import generate_model, generate_sim_model
+from model import generate_model
 from mean import get_mean, get_std
 from spatial_transforms import (
     Compose, Normalize, Scale, CenterCrop, CornerCrop, MultiScaleCornerCrop,
@@ -18,11 +18,13 @@ from target_transforms import ClassLabel, VideoID
 from target_transforms import Compose as TargetCompose
 from dataset import get_training_set, get_validation_set, get_test_set
 from utils import Logger
-from train_simnet import train_epoch
-from validation_simnet import val_epoch
+from temp_scaling import calibrate
 import test
 import copy
 
+
+np.random.seed(0)
+torch.manual_seed(0)
 
 if __name__ == '__main__':
     opt = parse_opts()
@@ -46,17 +48,9 @@ if __name__ == '__main__':
 
     torch.manual_seed(opt.manual_seed)
 
-    # sim_model, sim_parameters = generate_sim_model(opt)
     feature_model, _ = generate_model(opt)
     print(feature_model)
     feature_model.eval()
-    sim_model, sim_parameters = generate_sim_model(opt)
-    print(sim_model)
-
-    # criterion = nn.L1Loss()
-    criterion = nn.BCEWithLogitsLoss()
-    if not opt.no_cuda:
-        criterion = criterion.cuda()
 
     if opt.no_mean_norm and not opt.std_norm:
         norm_method = Normalize([0, 0, 0], [1, 1, 1])
@@ -83,13 +77,13 @@ if __name__ == '__main__':
         target_transform = ClassLabel()
         training_data = get_training_set(opt, spatial_transform,
                                          temporal_transform, target_transform)
-        train_loader = torch.utils.data.DataLoader(
+        data_loader = torch.utils.data.DataLoader(
             training_data,
             batch_size=opt.batch_size,
             shuffle=True,
             num_workers=opt.n_threads,
             pin_memory=True)
-        train_logger = Logger(
+        logger = Logger(
             os.path.join(opt.result_path, 'train.log'),
             ['epoch', 'loss', 'acc', 'lr'])
         train_batch_logger = Logger(
@@ -100,15 +94,6 @@ if __name__ == '__main__':
             dampening = 0
         else:
             dampening = opt.dampening
-        optimizer = optim.SGD(
-            sim_parameters,
-            lr=opt.learning_rate,
-            momentum=opt.momentum,
-            dampening=dampening,
-            weight_decay=opt.weight_decay,
-            nesterov=opt.nesterov)
-        scheduler = lr_scheduler.ReduceLROnPlateau(
-            optimizer, 'min', patience=opt.lr_patience)
     if not opt.no_val:
         spatial_transform = Compose([
             Scale(opt.sample_size),
@@ -119,13 +104,13 @@ if __name__ == '__main__':
         target_transform = ClassLabel()
         validation_data = get_validation_set(
             opt, spatial_transform, temporal_transform, target_transform)
-        val_loader = torch.utils.data.DataLoader(
+        data_loader = torch.utils.data.DataLoader(
             validation_data,
             batch_size=opt.batch_size,
             shuffle=False,
             num_workers=opt.n_threads,
             pin_memory=True)
-        val_logger = Logger(
+        logger = Logger(
             os.path.join(opt.result_path, 'val.log'), ['epoch', 'loss', 'acc'])
 
     if opt.resume_path:
@@ -140,30 +125,6 @@ if __name__ == '__main__':
         else:
             feature_model.load_state_dict(checkpoint['state_dict'])
 
-    if opt.resume_path_sim != '':
-        print('loading checkpoint {}'.format(opt.resume_path_sim))
-        checkpoint = torch.load(opt.resume_path_sim)
-        print(opt.arch, checkpoint['arch'])
-        assert opt.arch == checkpoint['arch']
+    print('Starting model calibration ', opt.begin_epoch)
 
-        opt.begin_epoch = checkpoint['epoch']
-        if not opt.no_cuda:
-            # Model wrapped around DataParallel but checkpoints are not
-            sim_model.module.load_state_dict(checkpoint['state_dict'])
-        else:
-            sim_model.load_state_dict(checkpoint['state_dict'])
-        if not opt.no_train:
-            optimizer.load_state_dict(checkpoint['optimizer'])
-
-    print('Starting run from epoch ', opt.begin_epoch)
-
-    for i in range(opt.begin_epoch, opt.n_epochs + 1):
-        if not opt.no_train:
-            train_epoch(i, train_loader, sim_model, feature_model, criterion, optimizer, opt,
-                        train_logger, train_batch_logger)
-        if not opt.no_val:
-            validation_loss = val_epoch(i, val_loader, sim_model, feature_model, criterion, opt,
-                                        val_logger)
-
-        if not opt.no_train and not opt.no_val:
-            scheduler.step(validation_loss)
+    calibrate(feature_model, data_loader, opt, logger)

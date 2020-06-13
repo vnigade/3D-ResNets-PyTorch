@@ -25,7 +25,6 @@ import timeit
 from utils import AverageMeter
 
 torch.backends.cudnn.enabled = False
-
 def model_time(model, opt):
     avg_time = AverageMeter()
     for i in range(100):
@@ -35,7 +34,8 @@ def model_time(model, opt):
             _ = model(input)
             torch.cuda.synchronize()
             prediction_time = timeit.default_timer() - start_time
-            avg_time.update(prediction_time * 1000)
+            if i > 10:
+                avg_time.update(prediction_time * 1000)
     print("Model inference time:", avg_time.avg)
 
 if __name__ == '__main__':
@@ -80,7 +80,11 @@ if __name__ == '__main__':
 
     if opt.resume_path:
         print('loading checkpoint {}'.format(opt.resume_path))
-        checkpoint = torch.load(opt.resume_path)
+        if opt.no_cuda_predict:
+            checkpoint = torch.load(opt.resume_path, map_location='cpu')
+        else:
+            checkpoint = torch.load(opt.resume_path)
+
         assert opt.arch == checkpoint['arch']
 
         opt.begin_epoch = checkpoint['epoch']
