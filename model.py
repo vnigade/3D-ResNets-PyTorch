@@ -1,12 +1,12 @@
 import torch
 from torch import nn
 
-from models import resnet, pre_act_resnet, wide_resnet, resnext, densenet, simnet, mobilenet
+from models import resnet, pre_act_resnet, wide_resnet, resnext, densenet, simnet, mobilenet, mobilenetv2
 
 
 def generate_model(opt):
     assert opt.model in [
-        'resnet', 'preresnet', 'wideresnet', 'resnext', 'densenet', 'mobilenet'
+        'resnet', 'preresnet', 'wideresnet', 'resnext', 'densenet', 'mobilenet', 'mobilenetv2'
     ]
 
     if opt.model == 'resnet':
@@ -167,6 +167,13 @@ def generate_model(opt):
             num_classes=opt.n_classes,
             sample_size=opt.sample_size,
             width_mult=opt.width_mult)
+    elif opt.model == 'mobilenetv2':
+        from models.mobilenetv2 import get_fine_tuning_parameters
+        model = mobilenetv2.get_model(
+            num_classes=opt.n_classes,
+            sample_size=opt.sample_size,
+            width_mult=opt.width_mult)
+    
 
     if not opt.no_cuda:
         if not opt.no_cuda_predict:
@@ -195,7 +202,7 @@ def generate_model(opt):
                 model.module.fc = nn.Linear(model.module.fc.in_features,
                                             opt.n_finetune_classes)
                 model.module.fc = model.module.fc.cuda()
-
+            print("Finetuning at:", ft_begin_index)
             parameters = get_fine_tuning_parameters(model, ft_begin_index)
             return model, parameters
     else:
@@ -218,7 +225,7 @@ def generate_model(opt):
             else:
                 model.fc = nn.Linear(model.fc.in_features,
                                      opt.n_finetune_classes)
-
+            print("Finetuning at:", ft_begin_index)
             parameters = get_fine_tuning_parameters(model, ft_begin_index)
             return model, parameters
 

@@ -281,8 +281,11 @@ def parse_opts():
         help='Save data (.pth) of previous simnet training')
     parser.add_argument(
         '--no_cuda_predict', action='store_true', help='If true, cuda is not used during predict')
-    parser.add_argument('--width_mult', default=1.0, type=float, help='The applied width multiplier to scale number of filters')
     parser.set_defaults(no_cuda_predict=False)
+    parser.add_argument('--width_mult', default=1.0, type=float, help='The applied width multiplier to scale number of filters')
+    parser.add_argument('--modality', default='RGB', type=str, help='Modality of input data. RGB, Flow or RGBFlow')
+    parser.add_argument('--downsample', default=1, type=int, help='Downsampling. Selecting 1 frame out of N')
+    parser.add_argument('--lr_steps', default=[40, 55, 65, 70, 200, 250], type=float, nargs="+", metavar='LRSteps', help='epochs to decay learning rate by 10')
 
     args = parser.parse_args()
 
