@@ -18,6 +18,7 @@ from target_transforms import ClassLabel, VideoID
 from target_transforms import Compose as TargetCompose
 from dataset import get_training_set, get_validation_set, get_test_set
 from utils import Logger
+from utils import adjust_learning_rate
 from train import train_epoch
 from KD_train import train_epoch as kd_train_epoch
 from KD_train import teacher_predictions
@@ -60,7 +61,10 @@ if __name__ == '__main__':
     opt.scales = [opt.initial_scale]
     for i in range(1, opt.n_scales):
         opt.scales.append(opt.scales[-1] * opt.scale_step)
-    opt.arch = '{}-{}'.format(opt.model, opt.model_depth)
+    if opt.model == 'mobilenet' or opt.model == 'mobilenetv2':
+        opt.arch = opt.model
+    else:
+        opt.arch = '{}-{}'.format(opt.model, opt.model_depth)
     opt.mean = get_mean(opt.norm_value, dataset=opt.mean_dataset)
     opt.std = get_std(opt.norm_value)
     print(opt)
@@ -185,6 +189,8 @@ if __name__ == '__main__':
                 kd_train_epoch(i, train_loader, model, None, optimizer, opt,
                                train_logger, train_batch_logger)
             else:
+                if opt.model == 'mobilenet' or opt.model == 'mobilenetv2':
+                    adjust_learning_rate(optimizer, i, opt)
                 train_epoch(i, train_loader, model, criterion, optimizer, opt,
                             train_logger, train_batch_logger)
         if not opt.no_val:

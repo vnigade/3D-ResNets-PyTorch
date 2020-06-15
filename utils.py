@@ -1,5 +1,6 @@
 import csv
-
+import numpy as np
+import torch
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -59,3 +60,30 @@ def calculate_accuracy(outputs, targets):
     n_correct_elems = correct.float().sum().item()
 
     return n_correct_elems / batch_size
+
+def calculate_accuracy_mobilenet(output, target, topk=(1,)):
+    """Computes the precision@k for the specified values of k"""
+    maxk = max(topk)
+    batch_size = target.size(0)
+
+    _, pred = output.topk(maxk, 1, True, True)
+    pred = pred.t()
+    correct = pred.eq(target.view(1, -1).expand_as(pred))
+
+    res = []
+    for k in topk:
+        correct_k = correct[:k].view(-1).float().sum(0)
+        res.append(correct_k.mul_(100.0 / batch_size))
+    return res
+
+def save_checkpoint(state, is_best, opt):
+    torch.save(state, '%s/%s_checkpoint.pth' % (opt.result_path, opt.store_name))
+    if is_best:
+        shutil.copyfile('%s/%s_checkpoint.pth' % (opt.result_path, opt.store_name),'%s/%s_best.pth' % (opt.result_path, opt.store_name))
+
+def adjust_learning_rate(optimizer, epoch, opt):
+    """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
+    lr_new = opt.learning_rate * (0.1 ** (sum(epoch >= np.array(opt.lr_steps))))
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr_new
+        #param_group['lr'] = opt.learning_rate

@@ -18,6 +18,7 @@ from target_transforms import ClassLabel, VideoID
 from target_transforms import Compose as TargetCompose
 from dataset import get_training_set, get_validation_set, get_test_set
 from utils import Logger
+from utils import adjust_learning_rate
 from train import train_epoch
 from validation import val_epoch
 import copy
@@ -152,6 +153,7 @@ if __name__ == '__main__':
 
     for i in range(opt.begin_epoch, opt.n_epochs + 1):
         if not opt.no_train:
+            adjust_learning_rate(optimizer, i, opt) 
             train_epoch(i, train_loader, model, criterion, optimizer, opt,
                         train_logger, train_batch_logger)
         if not opt.no_val:
