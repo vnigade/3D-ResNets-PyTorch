@@ -211,7 +211,7 @@ def test_batch(dataset, model, opt, class_names, batch_size):
                 inputs = inputs.to('cuda')
             else:
                 inputs = inputs.to('cpu')
-            print("Input size", inputs.shape, inputs)
+            # print("Input size", inputs.shape, inputs)
             outputs = model(inputs)
             if not opt.no_softmax_in_test:
                 outputs = F.softmax(outputs, dim=1)
