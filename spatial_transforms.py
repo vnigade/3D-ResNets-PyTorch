@@ -113,6 +113,7 @@ class Normalize(object):
             Tensor: Normalized image.
         """
         # TODO: make efficient
+        tensor = tensor.cuda()
         for t, m, s in zip(tensor, self.mean, self.std):
             t.sub_(m).div_(s)
         return tensor
