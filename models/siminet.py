@@ -2,13 +2,13 @@ from torch.functional import F
 from torch import nn
 
 __all__ = [
-    'SimNet'
+    'SimiNet'
 ]
 
 
-class SimNet(nn.Module):
+class SimiNet(nn.Module):
     def __init__(self, opt):
-        super(SimNet, self).__init__()
+        super(SimiNet, self).__init__()
         self.output = 1
         self.input = opt.n_finetune_classes * 2
         print("Input", self.input, "Classes", opt.n_finetune_classes)

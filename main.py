@@ -43,7 +43,8 @@ def load_teacher_model(opt):
     print('loading teacher model checkpoint {}'.format(local_opt.resume_path))
     checkpoint = torch.load(local_opt.resume_path)
     assert local_opt.arch == checkpoint['arch']
-    res = [val for key, val in checkpoint['state_dict'].items() if 'module' in key]
+    res = [val for key, val in checkpoint['state_dict'].items()
+           if 'module' in key]
     # if not opt.no_cuda:
     if len(res) == 0:
         # Model wrapped around DataParallel but checkpoints are not
@@ -165,13 +166,15 @@ if __name__ == '__main__':
 
     if opt.resume_path:
         print('loading checkpoint {}'.format(opt.resume_path))
-        assert os.path.exists(opt.resume_path), "Resume path does not exist".format(opt.resume_path)
+        assert os.path.exists(
+            opt.resume_path), "Resume path does not exist".format(opt.resume_path)
         checkpoint = torch.load(opt.resume_path)
         print(opt.arch, checkpoint['arch'])
         assert opt.arch == checkpoint['arch']
 
         opt.begin_epoch = checkpoint['epoch']
-        res = [val for key, val in checkpoint['state_dict'].items() if 'module' in key]
+        res = [val for key, val in checkpoint['state_dict'].items()
+               if 'module' in key]
         # if not opt.no_cuda:
         if len(res) == 0:
             # Model wrapped around DataParallel but checkpoints are not
@@ -192,6 +195,7 @@ if __name__ == '__main__':
         if not opt.no_train:
             if opt.kd_train:
                 # teacher_model = load_teacher_model(opt)
+                # @note. This code is not tested well.
                 kd_train_epoch(i, train_loader, model, teacher_model, optimizer, opt,
                                train_logger, train_batch_logger)
             else:

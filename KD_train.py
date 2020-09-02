@@ -10,6 +10,7 @@ from utils import AverageMeter, calculate_accuracy
 
 _teacher_outputs_dict = {}
 
+
 def loss_kd(outputs, teacher_outputs, targets):
     # "alpha": 0.95,
     # "temperature": 6,
@@ -20,6 +21,7 @@ def loss_kd(outputs, teacher_outputs, targets):
         F.cross_entropy(outputs, targets) * (1. - alpha)
 
     return KD_loss
+
 
 def teacher_predictions(model, data_loader, opt):
     assert not _teacher_outputs_dict
@@ -37,9 +39,13 @@ def teacher_predictions(model, data_loader, opt):
         for i in range(len(indices)):
             _teacher_outputs_dict[indices[i].item()] = teacher_output[i]
     return
-    
+
+
 def train_epoch(epoch, data_loader, model, teacher_model, optimizer, opt,
                 epoch_logger, batch_logger):
+    '''
+    @note. This function is not tested. And may be implemented or conceptualized incorrectly.
+    '''
     print('train at epoch {}'.format(epoch))
     model.train()
     teacher_model.eval()
@@ -57,11 +63,11 @@ def train_epoch(epoch, data_loader, model, teacher_model, optimizer, opt,
     #        inputs = Variable(inputs)
     #        targets = Variable(targets)
     #        teacher_output = teacher_model(inputs).data.cpu().numpy()
-            # print("Teacher output shape", teacher_output.shape)
-            # teacher_outputs.append(teacher_output)
+    # print("Teacher output shape", teacher_output.shape)
+    # teacher_outputs.append(teacher_output)
     #        for i in range(len(indices)):
     #            _teacher_outputs_dict[indices[i].item()] = teacher_output[i]
-    #else:
+    # else:
     #    print("Skipping teacher model execution...")
 
     # Check if it is teacher output
@@ -79,16 +85,16 @@ def train_epoch(epoch, data_loader, model, teacher_model, optimizer, opt,
         # loss = criterion(outputs, targets)
         # teacher_outputs = []
         # for idx in indices:
-            # print("idx, teacher output", idx, _teacher_outputs_dict[idx.item()])
+        # print("idx, teacher output", idx, _teacher_outputs_dict[idx.item()])
         #    teacher_outputs.append(_teacher_outputs_dict[idx.item()])
-        #teacher_outputs = np.asarray(teacher_outputs)
+        # teacher_outputs = np.asarray(teacher_outputs)
 
         # teacher_output = torch.from_numpy(teacher_outputs)
-        #if not opt.no_cuda:
+        # if not opt.no_cuda:
         #    teacher_output = teacher_output.cuda(async=True)
         #    teacher_output = Variable(teacher_output, requires_grad=False)
-      
-        # get teacher output. 
+
+        # get teacher output.
         teacher_output = teacher_model(inputs)
         loss = loss_kd(outputs, teacher_output, targets)
         acc = calculate_accuracy(outputs, targets)

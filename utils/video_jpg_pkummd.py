@@ -29,7 +29,7 @@ if __name__ == "__main__":
         except:
             print(dst_directory_path)
             continue
-        cmd = 'ffmpeg -i {} -vf scale=-1:360 {}/image_%05d.jpg'.format(
+        cmd = 'ffmpeg -i {} -vf scale=-1:240,fps=30 {}/image_%05d.jpg'.format(
             video_file_path, dst_directory_path)
         print(cmd)
         subprocess.call(cmd, shell=True)

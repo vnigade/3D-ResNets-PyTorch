@@ -9,13 +9,15 @@ if __name__ == '__main__':
         raise NotImplemented()
 
     opt.arch = '{}-{}'.format(opt.model, opt.model_depth)
-    
+
     # Load pretrained model
     model, _ = generate_model(opt)
     # model = model.cuda()
     checkpoint = torch.load(opt.resume_path)
-    model.load_state_dict(checkpoint['state_dict']) 
+    model.load_state_dict(checkpoint['state_dict'])
 
     # dummy input
-    dummy_input = torch.randn(1, 3, opt.sample_duration, opt.sample_size, opt.sample_size)
-    onnx.export(model, dummy_input, opt.model + "-" + str(opt.model_depth) + ".onnx")
+    dummy_input = torch.randn(
+        1, 3, opt.sample_duration, opt.sample_size, opt.sample_size)
+    onnx.export(model, dummy_input, opt.model +
+                "-" + str(opt.model_depth) + ".onnx")

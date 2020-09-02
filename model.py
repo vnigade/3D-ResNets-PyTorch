@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from models import resnet, pre_act_resnet, wide_resnet, resnext, densenet, simnet, mobilenet, mobilenetv2
+from models import resnet, pre_act_resnet, wide_resnet, resnext, densenet, siminet, mobilenet, mobilenetv2
 
 
 def generate_model(opt):
@@ -173,7 +173,6 @@ def generate_model(opt):
             num_classes=opt.n_classes,
             sample_size=opt.sample_size,
             width_mult=opt.width_mult)
-    
 
     if not opt.no_cuda:
         if not opt.no_cuda_predict:
@@ -233,7 +232,7 @@ def generate_model(opt):
 
 
 def generate_sim_model(opt):
-    model = simnet.SimNet(opt)
+    model = siminet.SimiNet(opt)
     if not opt.no_cuda:
         model = model.cuda()
         model = nn.DataParallel(model, device_ids=None)

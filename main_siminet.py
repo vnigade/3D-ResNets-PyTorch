@@ -8,18 +8,20 @@ from torch import optim
 from torch.optim import lr_scheduler
 
 from opts import parse_opts
-from model import generate_model
+from model import generate_model, generate_sim_model
 from mean import get_mean, get_std
-from spatial_transforms import *
-from temporal_transforms import *
+from spatial_transforms import (
+    Compose, Normalize, Scale, CenterCrop, CornerCrop, MultiScaleCornerCrop,
+    MultiScaleRandomCrop, RandomHorizontalFlip, ToTensor)
+from temporal_transforms import LoopPadding, TemporalRandomCrop
 from target_transforms import ClassLabel, VideoID
 from target_transforms import Compose as TargetCompose
 from dataset import get_training_set, get_validation_set, get_test_set
-from utils import *
-from train_mobilenet import train_epoch
-from validation import val_epoch
+from utils import Logger
+from train_siminet import train_epoch
+from validation_siminet import val_epoch
 import test
-
+import copy
 
 
 if __name__ == '__main__':
@@ -28,8 +30,6 @@ if __name__ == '__main__':
         opt.video_path = os.path.join(opt.root_path, opt.video_path)
         opt.annotation_path = os.path.join(opt.root_path, opt.annotation_path)
         opt.result_path = os.path.join(opt.root_path, opt.result_path)
-        if not os.path.exists(opt.result_path):
-            os.makedirs(opt.result_path)
         if opt.resume_path:
             opt.resume_path = os.path.join(opt.root_path, opt.resume_path)
         if opt.pretrain_path:
@@ -37,21 +37,26 @@ if __name__ == '__main__':
     opt.scales = [opt.initial_scale]
     for i in range(1, opt.n_scales):
         opt.scales.append(opt.scales[-1] * opt.scale_step)
-    opt.arch = '{}'.format(opt.model)
+    if opt.model == 'mobilenet' or opt.model == 'mobilenetv2':
+        opt.arch = opt.model
+    else:
+        opt.arch = '{}-{}'.format(opt.model, opt.model_depth)
     opt.mean = get_mean(opt.norm_value, dataset=opt.mean_dataset)
     opt.std = get_std(opt.norm_value)
-    opt.store_name = '_'.join([opt.dataset, opt.model, str(opt.width_mult) + 'x',
-                               opt.modality, str(opt.sample_duration)])
     print(opt)
     with open(os.path.join(opt.result_path, 'opts.json'), 'w') as opt_file:
         json.dump(vars(opt), opt_file)
 
     torch.manual_seed(opt.manual_seed)
 
-    model, parameters = generate_model(opt)
-    print(model)
+    feature_model, _ = generate_model(opt)
+    print(feature_model)
+    feature_model.eval()
+    sim_model, sim_parameters = generate_sim_model(opt)
+    print(sim_model)
 
-    criterion = nn.CrossEntropyLoss()
+    # criterion = nn.L1Loss()
+    criterion = nn.BCEWithLogitsLoss()
     if not opt.no_cuda:
         criterion = criterion.cuda()
 
@@ -76,7 +81,6 @@ if __name__ == '__main__':
             RandomHorizontalFlip(),
             ToTensor(opt.norm_value), norm_method
         ])
-        # temporal_transform = TemporalRandomCrop(opt.sample_duration, opt.downsample)
         temporal_transform = TemporalRandomCrop(opt.sample_duration)
         target_transform = ClassLabel()
         training_data = get_training_set(opt, spatial_transform,
@@ -89,17 +93,17 @@ if __name__ == '__main__':
             pin_memory=True)
         train_logger = Logger(
             os.path.join(opt.result_path, 'train.log'),
-            ['epoch', 'loss', 'prec1', 'prec5', 'lr'])
+            ['epoch', 'loss', 'acc', 'lr'])
         train_batch_logger = Logger(
             os.path.join(opt.result_path, 'train_batch.log'),
-            ['epoch', 'batch', 'iter', 'loss', 'prec1', 'prec5', 'lr'])
+            ['epoch', 'batch', 'iter', 'loss', 'acc', 'lr'])
 
         if opt.nesterov:
             dampening = 0
         else:
             dampening = opt.dampening
         optimizer = optim.SGD(
-            parameters,
+            sim_parameters,
             lr=opt.learning_rate,
             momentum=opt.momentum,
             dampening=dampening,
@@ -113,83 +117,55 @@ if __name__ == '__main__':
             CenterCrop(opt.sample_size),
             ToTensor(opt.norm_value), norm_method
         ])
-        #temporal_transform = LoopPadding(opt.sample_duration)
-        # temporal_transform = TemporalCenterCrop(opt.sample_duration, opt.downsample)
-        temporal_transform = TemporalRandomCrop(opt.sample_duration)
+        temporal_transform = LoopPadding(opt.sample_duration)
         target_transform = ClassLabel()
         validation_data = get_validation_set(
             opt, spatial_transform, temporal_transform, target_transform)
         val_loader = torch.utils.data.DataLoader(
             validation_data,
-            batch_size=16,
+            batch_size=opt.batch_size,
             shuffle=False,
             num_workers=opt.n_threads,
             pin_memory=True)
         val_logger = Logger(
-            os.path.join(opt.result_path, 'val.log'), ['epoch', 'loss', 'prec1', 'prec5'])
+            os.path.join(opt.result_path, 'val.log'), ['epoch', 'loss', 'acc'])
 
-    best_prec1 = 0
     if opt.resume_path:
         print('loading checkpoint {}'.format(opt.resume_path))
         checkpoint = torch.load(opt.resume_path)
+        print(opt.arch, checkpoint['arch'])
         assert opt.arch == checkpoint['arch']
-        best_prec1 = checkpoint['best_prec1']
+
+        if not opt.no_cuda:
+            # Model wrapped around DataParallel but checkpoints are not
+            feature_model.module.load_state_dict(checkpoint['state_dict'])
+        else:
+            feature_model.load_state_dict(checkpoint['state_dict'])
+
+    if opt.resume_path_sim != '':
+        print('loading checkpoint {}'.format(opt.resume_path_sim))
+        checkpoint = torch.load(opt.resume_path_sim)
+        print(opt.arch, checkpoint['arch'])
+        assert opt.arch == checkpoint['arch']
+
         opt.begin_epoch = checkpoint['epoch']
-        model.load_state_dict(checkpoint['state_dict'])
-
-
-    print('run')
-    for i in range(opt.begin_epoch, opt.n_epochs + 1):
-
+        if not opt.no_cuda:
+            # Model wrapped around DataParallel but checkpoints are not
+            sim_model.module.load_state_dict(checkpoint['state_dict'])
+        else:
+            sim_model.load_state_dict(checkpoint['state_dict'])
         if not opt.no_train:
-            adjust_learning_rate(optimizer, i, opt)
-            train_epoch(i, train_loader, model, criterion, optimizer, opt,
+            optimizer.load_state_dict(checkpoint['optimizer'])
+
+    print('Starting run from epoch ', opt.begin_epoch)
+
+    for i in range(opt.begin_epoch, opt.n_epochs + 1):
+        if not opt.no_train:
+            train_epoch(i, train_loader, sim_model, feature_model, criterion, optimizer, opt,
                         train_logger, train_batch_logger)
-            state = {
-                'epoch': i,
-                'arch': opt.arch,
-                'state_dict': model.state_dict(),
-                'optimizer': optimizer.state_dict(),
-                'best_prec1': best_prec1
-                }
-            save_checkpoint(state, False, opt)
-            
         if not opt.no_val:
-            validation_loss, prec1 = val_epoch(i, val_loader, model, criterion, opt,
+            validation_loss = val_epoch(i, val_loader, sim_model, feature_model, criterion, opt,
                                         val_logger)
-            is_best = prec1 > best_prec1
-            best_prec1 = max(prec1, best_prec1)
-            state = {
-                'epoch': i,
-                'arch': opt.arch,
-                'state_dict': model.state_dict(),
-                'optimizer': optimizer.state_dict(),
-                'best_prec1': best_prec1
-                }
-            save_checkpoint(state, is_best, opt)
 
-
-    if opt.test:
-        spatial_transform = Compose([
-            Scale(int(opt.sample_size / opt.scale_in_test)),
-            CornerCrop(opt.sample_size, opt.crop_position_in_test),
-            ToTensor(opt.norm_value), norm_method
-        ])
-        # temporal_transform = LoopPadding(opt.sample_duration, opt.downsample)
-        # temporal_transform = TemporalRandomCrop(opt.sample_duration, opt.downsample)
-        temporal_transform = TemporalRandomCrop(opt.sample_duration)
-        target_transform = VideoID()
-
-        test_data = get_test_set(opt, spatial_transform, temporal_transform,
-                                 target_transform)
-        test_loader = torch.utils.data.DataLoader(
-            test_data,
-            batch_size=16,
-            shuffle=False,
-            num_workers=opt.n_threads,
-            pin_memory=True)
-        test.test(test_loader, model, opt, test_data.class_names)
-
-
-
-
+        if not opt.no_train and not opt.no_val:
+            scheduler.step(validation_loss)

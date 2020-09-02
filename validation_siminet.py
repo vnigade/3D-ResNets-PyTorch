@@ -8,8 +8,9 @@ from utils import AverageMeter, calculate_accuracy
 from sklearn.metrics.pairwise import cosine_similarity as sk_cosine_similarity
 from sklearn.metrics import mean_squared_error as sk_mse
 
-_cosine_pred = [[],[]]
-_simnet_pred = [[],[]]
+_cosine_pred = [[], []]
+_siminet_pred = [[], []]
+
 
 def cosine_similarity(vec1, vec2):
     vec1 = vec1.reshape(1, -1)
@@ -18,11 +19,13 @@ def cosine_similarity(vec1, vec2):
     alpha = alpha[0][0]
     return alpha
 
+
 def update_sim_accuracy(cosine_alpha, sim_alpha, label):
     # print("Similarity: ", cosine_alpha, sim_alpha, label)A
     print("Label", int(label))
     _cosine_pred[int(label)].append(cosine_alpha)
-    _simnet_pred[int(label)].append(sim_alpha)
+    _siminet_pred[int(label)].append(sim_alpha)
+
 
 def print_accuracy():
     # Cosine mse
@@ -31,18 +34,26 @@ def print_accuracy():
     y_true[1] = [1.0 for i in range(len(_cosine_pred[1]))]
     cosine_dis_mse = sk_mse(_cosine_pred[0], y_true[0])
     cosine_sim_mse = sk_mse(_cosine_pred[1], y_true[1])
-    cosine_tot_mse = sk_mse(_cosine_pred[0] + _cosine_pred[1], y_true[0] + y_true[1]) 
+    cosine_tot_mse = sk_mse(
+        _cosine_pred[0] + _cosine_pred[1], y_true[0] + y_true[1])
 
-    simnet_dis_mse = sk_mse(_simnet_pred[0], y_true[0])
-    simnet_sim_mse = sk_mse(_simnet_pred[1], y_true[1])
-    simnet_tot_mse = sk_mse(_simnet_pred[0] + _simnet_pred[1], y_true[0] + y_true[1])
-    print("Disimilarity error: cosine={}, simnet={}", cosine_dis_mse, simnet_dis_mse)
-    print("Similarity error: cosine={}, simnet={}", cosine_sim_mse, simnet_sim_mse)
-    print("Total error: cosine={}, simnet={}", cosine_tot_mse, simnet_tot_mse)
-    
+    siminet_dis_mse = sk_mse(_siminet_pred[0], y_true[0])
+    siminet_sim_mse = sk_mse(_siminet_pred[1], y_true[1])
+    siminet_tot_mse = sk_mse(
+        _siminet_pred[0] + _siminet_pred[1], y_true[0] + y_true[1])
+    print("Disimilarity error: cosine={}, siminet={}",
+          cosine_dis_mse, siminet_dis_mse)
+    print("Similarity error: cosine={}, siminet={}",
+          cosine_sim_mse, siminet_sim_mse)
+    print("Total error: cosine={}, siminet={}",
+          cosine_tot_mse, siminet_tot_mse)
+
 
 def val_epoch(epoch, data_loader, sim_model, feature_model, criterion, opt,
-                epoch_logger):
+              epoch_logger):
+    '''
+    @note. This code is not tested.
+    '''
     print('train at epoch {}'.format(epoch))
 
     feature_model.eval()
@@ -72,9 +83,9 @@ def val_epoch(epoch, data_loader, sim_model, feature_model, criterion, opt,
         inputs = torch.cat([outputs1, outputs2], dim=-1)
         outputs = sim_model(inputs)
         outputs = torch.sigmoid(outputs)
-       
-        outputs1 = F.softmax(outputs1, dim=1) 
-        outputs2 = F.softmax(outputs2, dim=1) 
+
+        outputs1 = F.softmax(outputs1, dim=1)
+        outputs2 = F.softmax(outputs2, dim=1)
         outputs1 = outputs1.cpu().detach().numpy()
         outputs2 = outputs2.cpu().detach().numpy()
         for j in range(len(outputs)):
@@ -87,5 +98,5 @@ def val_epoch(epoch, data_loader, sim_model, feature_model, criterion, opt,
 
         if (i % 100) == 0:
             print("Finished; {}/{}".format(i, total_videos))
-        
+
     print_accuracy()

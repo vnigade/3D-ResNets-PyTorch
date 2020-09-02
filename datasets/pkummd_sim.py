@@ -1,3 +1,6 @@
+'''
+PKUMMD dataset handlers for siminet model
+'''
 import torch
 import torch.utils.data as data
 from PIL import Image
@@ -208,6 +211,9 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
                 }
                 dataset.append(sample)
         elif len(next_samples) > 0:
+            # Note that, we do not consider this next frame segment for training.
+            # This unintentional feature (or bug) have led to a balanced number of training samples
+            # for the binary classification task.
             label = 0
             sample_list = [cur_samples, next_samples]
             sample_list = list(itertools.product(*sample_list))

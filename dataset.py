@@ -9,8 +9,8 @@ from datasets.pkummd_ed import PKUMMD_ED
 
 def get_training_set(opt, spatial_transform, temporal_transform,
                      target_transform):
-    assert opt.dataset in ['kinetics',
-                           'activitynet', 'ucf101', 'hmdb51', 'pkummd', 'pkummd_sim', 'pkummd_ed']
+    assert opt.dataset in ['kinetics', 'activitynet', 'ucf101', 'hmdb51',
+                           'pkummd', 'pkummd_sim', 'pkummd_ed']
 
     if opt.dataset == 'kinetics':
         training_data = Kinetics(
@@ -77,8 +77,8 @@ def get_training_set(opt, spatial_transform, temporal_transform,
 
 def get_validation_set(opt, spatial_transform, temporal_transform,
                        target_transform):
-    assert opt.dataset in ['kinetics',
-                           'activitynet', 'ucf101', 'hmdb51', 'pkummd', 'pkummd_sim', 'pkummd_ed']
+    assert opt.dataset in ['kinetics', 'activitynet', 'ucf101', 'hmdb51',
+                           'pkummd', 'pkummd_sim', 'pkummd_ed']
 
     if opt.dataset == 'kinetics':
         validation_data = Kinetics(

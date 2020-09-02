@@ -25,10 +25,13 @@ import timeit
 from utils import AverageMeter
 
 torch.backends.cudnn.enabled = False
+
+
 def model_time(model, opt):
     avg_time = AverageMeter()
     for i in range(100):
-        input = torch.randn([1,3,opt.sample_duration,opt.sample_size,opt.sample_size]).cuda()
+        input = torch.randn(
+            [1, 3, opt.sample_duration, opt.sample_size, opt.sample_size]).cuda()
         start_time = timeit.default_timer()
         with torch.no_grad():
             _ = model(input)
@@ -37,6 +40,7 @@ def model_time(model, opt):
             if i > 10:
                 avg_time.update(prediction_time * 1000)
     print("Model inference time:", avg_time.avg)
+
 
 if __name__ == '__main__':
     opt = parse_opts()
@@ -91,7 +95,8 @@ if __name__ == '__main__':
         assert opt.arch == checkpoint['arch']
 
         opt.begin_epoch = checkpoint['epoch']
-        res = [val for key, val in checkpoint['state_dict'].items() if 'module' in key]
+        res = [val for key, val in checkpoint['state_dict'].items()
+               if 'module' in key]
         # if not opt.no_cuda:
         if len(res) == 0:
             # Model wrapped around DataParallel but checkpoints are not
@@ -103,7 +108,7 @@ if __name__ == '__main__':
         #    optimizer.load_state_dict(checkpoint['optimizer'])
 
     print('run')
-    # Perform validation to check the accuracy on clip videos
+    # Perform validation to check the accuracy on clipped videos
     if not opt.no_val:
         spatial_transform = Compose([
             Scale(opt.sample_size),
@@ -124,7 +129,7 @@ if __name__ == '__main__':
             os.path.join(opt.result_path, 'val.log'), ['epoch', 'loss', 'acc'])
         validation_loss = val_epoch(opt.begin_epoch, val_loader, model, criterion, opt,
                                     val_logger)
-  
+
     # similarity model for testing
     sim_model = None
     if opt.resume_path_sim != '':
@@ -139,17 +144,14 @@ if __name__ == '__main__':
         else:
             sim_model.load_state_dict(checkpoint['state_dict'])
         sim_model.eval()
-        
+
     if opt.test:
         spatial_transform = Compose([
-            # Scale(int(opt.sample_size / opt.scale_in_test)),
             Scale(opt.sample_size),
-            # CornerCrop(opt.sample_size, opt.crop_position_in_test),
             CenterCrop(opt.sample_size),
             ToTensor(opt.norm_value), norm_method
         ])
         temporal_transform = LoopPadding(opt.window_size)
-        # target_transform = VideoID()
         target_transform = ClassLabel()
 
         test_data = get_test_set(opt, spatial_transform, temporal_transform,
@@ -161,5 +163,5 @@ if __name__ == '__main__':
             num_workers=opt.n_threads,
             pin_memory=True)
         # test.test(test_loader, model, opt, test_data.class_names, sim_model=sim_model)
-        print("Predicting batch size.. 64")
+        print("Predicting batch size.. 32")
         test.test_batch(test_data, model, opt, test_data.class_names, 32)

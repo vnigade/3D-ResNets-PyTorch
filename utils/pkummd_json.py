@@ -7,11 +7,13 @@ import pandas as pd
 
 def convert_csv_to_dict(csv_path, idx_to_class, subset):
     data = pd.read_csv(csv_path, delimiter=',', header=None)
+    data = data.sort_values(by=1)
 
     database = {}
     file_name, file_ext = os.path.splitext(os.path.basename(csv_path))
     for i in range(data.shape[0]):
-        row = data.ix[i, :]
+        # row = data.ix[i, :]
+        row = data.loc[i, :]
         key = file_name + '-clip-' + str(i)
         # Actual index starts from 1 but we need from 0.
         key_label = int(row[0]) - 1
@@ -89,7 +91,8 @@ def get_splits_from_file(split_file):
     train = []
     validation = []
     for i in range(data.shape[0]):
-        row = data.ix[i, :]
+        # row = data.ix[i, :]
+        row = data.loc[i, :]
         if row[0] == 'training_videos':
             train.extend(row[1:])
         elif row[0] == 'validation_videos':
@@ -121,10 +124,9 @@ if __name__ == '__main__':
 
     split_file = None
     if len(sys.argv) == 4:
-        split_file = sys.argv[3]
-
-    label_csv_path = sys.argv[1]
-    class_label_path = sys.argv[2]
+        split_file = sys.argv[3]  # Split file
+    label_csv_path = sys.argv[1]  # Directory containing per video annotations
+    class_label_path = sys.argv[2]  # Excel file
 
     if split_file is not None:
         train_videos, validation_videos = get_splits_from_file(split_file)

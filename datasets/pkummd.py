@@ -57,7 +57,6 @@ def load_annotation_data(data_file_path):
 
 
 def get_class_labels(data):
-
     class_labels_map = {}
     for _, value in data['database'].items():
         label = int(value['annotations']['label'])
@@ -163,12 +162,6 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
     return dataset, idx_to_class
 
 
-def get_end_t(video_path):
-    file_names = os.listdir(video_path)
-    image_file_names = [x for x in file_names if 'image' in x]
-    image_file_names.sort(reverse=True)
-    return int(image_file_names[0][6:11])
-
 def get_untrimmed_label(video, start_frame, end_frame):
     label = []
     for clip in video:
@@ -179,7 +172,8 @@ def get_untrimmed_label(video, start_frame, end_frame):
             if frame in list(range(start, end)):
                 label.append(action)
     return label
-    
+
+
 def make_untrimmed_dataset(root_path, scores_dump_path, annotation_path, subset,
                            n_samples_for_each_video, window_size, window_stride):
     data = load_annotation_data(annotation_path)
@@ -238,7 +232,8 @@ def make_untrimmed_dataset(root_path, scores_dump_path, annotation_path, subset,
                 sample['video'], frame_indices)
             sample['frame_indices'] = frame_indices
             # sample['label'] = -1  # Not computed yet
-            sample['label'] = get_untrimmed_label(videos[video], window_start, window_end)
+            sample['label'] = get_untrimmed_label(
+                videos[video], window_start, window_end)
             if len(frame_indices) == window_size:
                 dataset.append(sample)
 
@@ -322,7 +317,6 @@ class PKUMMD(data.Dataset):
             target = self.target_transform(target)
         # print(path, frame_indices, target)
         if self.is_untrimmed_setting:
-            # return clip, target, (self.data[index]['video_id'], self.data[index]['window_id'])
             return clip, target, self.data[index]
         else:
             return clip, target, index

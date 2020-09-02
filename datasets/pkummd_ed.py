@@ -1,3 +1,6 @@
+'''
+PKUMMD dataset handlers for early discard approach.
+'''
 import torch
 import torch.utils.data as data
 from PIL import Image
@@ -57,7 +60,6 @@ def load_annotation_data(data_file_path):
 
 
 def get_class_labels(data):
-
     class_labels_map = {}
     for _, value in data['database'].items():
         label = int(value['annotations']['label'])
@@ -150,6 +152,8 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
 
     dataset = []
     prev_video_id = None
+    # We assume that the annotation file for a video, for example 0002-M.txt, contains action list in
+    # a sorted order. Note that, all 1076 annotation files except some 18 files are in sorted format.
     for i in range(len(video_names)):
         if i != 0 and i % 1000 == 0:
             print('dataset loading [{}/{}]'.format(i, len(video_names)))
@@ -171,7 +175,7 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
         end_t = annotation['end_frame']
 
         if no_action_start_frame < begin_t:
-            # Handle backgound action.
+            # Create sample for background action.
             no_action_begin_t = no_action_start_frame
             no_action_end_t = begin_t
             annotation = 0
@@ -182,7 +186,7 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
             dataset.extend(samples)
             no_action_start_frame = end_t
 
-        # Handle the actual action
+        # Create sample for the actual action
         annotation = 1
         # print("Creating samples for action", video_id,
         #        begin_t, end_t)
@@ -190,13 +194,6 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
                                video_names[i], begin_t, end_t, annotation, sample_duration)
         dataset.extend(samples)
     return dataset, idx_to_class
-
-
-def get_end_t(video_path):
-    file_names = os.listdir(video_path)
-    image_file_names = [x for x in file_names if 'image' in x]
-    image_file_names.sort(reverse=True)
-    return int(image_file_names[0][6:11])
 
 
 def get_untrimmed_label(video, start_frame, end_frame):
@@ -354,7 +351,6 @@ class PKUMMD_ED(data.Dataset):
             target = self.target_transform(target)
         # print(path, frame_indices, target)
         if self.is_untrimmed_setting:
-            # return clip, target, (self.data[index]['video_id'], self.data[index]['window_id'])
             return clip, target, self.data[index]
         else:
             return clip, target, index

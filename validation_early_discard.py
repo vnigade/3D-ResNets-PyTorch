@@ -6,22 +6,25 @@ import numpy as np
 
 from utils import AverageMeter
 
+
 def print_output(outputs, target):
     scores = outputs.cpu().detach().numpy().flatten().tolist()
     action = np.argmax(np.asarray(scores, dtype=float))
     print("Validation output: ", action, target)
 
+
 tot_contexts = 0
-pred_contexts = 0 
+pred_contexts = 0
 tot_background = 0
 pred_background = 0
 
+
 def calculate_accuracy(outputs, targets):
     global tot_contexts, pred_contexts, tot_background, pred_background
-    _threshold = 0.9
+    _threshold = 0.5
     outputs = torch.sigmoid(outputs)
     for j in range(len(outputs)):
-        pred = 1.0 if outputs[j].item() >= 0.8 else 0.0
+        pred = 1.0 if outputs[j].item() >= _threshold else 0.0
         print("Stats: ", outputs[j].item(), targets[j].item(), pred)
         if targets[j].item() == 1.0:
             tot_contexts += 1
@@ -29,11 +32,15 @@ def calculate_accuracy(outputs, targets):
                 pred_contexts += 1
         else:
             tot_background += 1
-            if pred == 1.0:
+            if pred == 0.0:
                 pred_background += 1
-    return 0.0 
+    return 0.0
+
 
 def val_epoch(epoch, data_loader, model, criterion, opt, logger):
+    '''
+    @todo: The function is not very well tested.
+    '''
     print('validation at epoch {}'.format(epoch))
 
     model.eval()
@@ -77,5 +84,6 @@ def val_epoch(epoch, data_loader, model, criterion, opt, logger):
 
     # logger.log({'epoch': epoch, 'loss': losses.avg, 'acc': accuracies.avg})
     global tot_contexts, pred_contexts, tot_background, pred_background
-    print("Contexts: {}/{}, Background: {}/{}", tot_contexts, pred_contexts, tot_background, pred_background)
+    print("Contexts: {}/{}, Background: {}/{}".format(tot_contexts,
+                                                      pred_contexts, tot_background, pred_background))
     return losses.avg
